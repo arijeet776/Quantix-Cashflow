@@ -1,0 +1,38 @@
+{
+  "summary": "Tested Part 4 features (campaign purge + tracking-domain settings) end-to-end against the deployed preview URL. Backend: 21/21 live pytest cases pass — includes 6 invalid-URL rejections (422), trailing-slash normalization, canonical example URL, honest unverified status, database source, TRACKING_DOMAIN_UPDATED audit log, and full purge flow (preview shape, active-rejected, wrong-name-rejected, execute, PURGED status, second-purge rejection, purge-status endpoint, default-list hides purged, status=purged filter shows purged, CAMPAIGN_PURGED audit log, and P0 isolation: other campaigns/publishers untouched). Frontend: full purge UI flow works — purge-campaign-button visible only on ENDED campaigns (not on ACTIVE), purge-preview modal renders with campaign name/ID/status/per-category counts/purge-total, purge-confirm-button correctly stays disabled until exact campaign name is typed (wrong-name keeps it disabled), purge executes, purge-result + purge-verification blocks render, on reload the campaign shows PURGED badge + purged-banner + no End/Purge buttons, disappears from default Campaigns list and appears under status=Purged filter. Settings page: Domain & Tracking card updates, normalizes trailing slash, shows canonical example URL, honest 'Unverified' status with 'domain ownership verification not implemented' note, invalid URLs (javascript:, credentials, query string) are rejected with error banner 'Unsupported URL scheme — only http/https are allowed'.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Global theme", "issues": ["Review request states 'dark theme by default' but on fresh login the app renders in LIGHT theme (document.documentElement does not contain the 'dark' class). Theme toggle button exists in the header (sun/moon icons) and does persist a chosen theme across reload once toggled, but the initial/default is light, not dark. Verify against product intent."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/live_purge_and_settings_test.py",
+    "/app/test_reports/pytest/live_purge_results.xml"
+  ],
+  "action_items": [
+    "Confirm intended default theme. If dark should be the default (per review-request), set the initial theme provider default to 'dark' when no user preference is stored — otherwise update the spec/review-request wording.",
+    "Optional: add data-testid=\"theme-toggle\" to the header theme button and data-testid=\"tracking-domain-input\" / data-testid=\"tracking-domain-save\" on the Domain & Tracking form fields (currently discovered via label/text)."
+  ],
+  "critical_code_review_comments": [
+    "Purge dependency map and isolation are correctly enforced — verified live that purging campaign A leaves campaign B's status='active' untouched (P0 safety pass).",
+    "Tracking-domain PUT properly rejects credentials-in-URL, query strings, fragments, non-http(s) schemes, and whitespace at the API level (422 for all 6 attempted variants).",
+    "PURGED campaigns return status='purged' from GET /admin/campaigns/{id} and are excluded from the default list — server-side filter behaves correctly.",
+    "Second-purge attempt on an already-purged campaign returns a 4xx with 'already/purged' message (ALREADY_PROCESSED) — idempotent safety works."
+  ],
+  "updated_files": [
+    "/app/backend/tests/live_purge_and_settings_test.py (created)"
+  ],
+  "success_rate": {"backend": "100% (21/21 live + previously 236/236 in-pod)", "frontend": "~95% (all purge + settings testids and flows work; only concern is initial-theme default)"},
+  "test_credentials": "owner@quantixcashflow.in / QuantixOwner@2026 (SUPER_ADMIN) — as documented in /app/memory/test_credentials.md.",
+  "seed_data_creation": "Created several TEST-prefixed campaigns during isolation and UI-purge tests. Test campaigns 'TEST Isolation A ...', 'TEST Purge ...', and 'UI Purge Test 1789955872' were purged as part of testing. Two 'TEST Active' campaigns and 'TEST Isolation B' were left in ACTIVE state; 'TEST inspect' remains in DRAFT. These can be safely purged by the main agent if desired.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend regression suites (smoke/part2/part3/part4_purge) still pass in-pod against mongomock. The new /app/backend/tests/live_purge_and_settings_test.py hits the real preview URL and is safe to re-run — it creates its own TEST_-prefixed campaigns per run. Run with: `cd /app/backend && python3 -m pytest tests/live_purge_and_settings_test.py -v -n 0`. Note pytest.ini enforces `-n 2 --dist loadscope` under xdist; pass `-n 0` for serial. Only unresolved question is whether dark should be the default theme (see design_issues).",
+  "rca of the issue": "Not a bug — design intent verification only. The rendered `<html>` element lacks the `dark` class on first load after login, indicating the default state is light. Toggling via the header icon does add/remove `dark` class and the choice persists across reload (localStorage). If dark-by-default is required, the theme provider's fallback (when no localStorage value is present) needs to default to 'dark' instead of the current default."
+}
