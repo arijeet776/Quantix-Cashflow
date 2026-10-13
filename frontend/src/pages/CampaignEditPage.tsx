@@ -15,6 +15,8 @@ interface CampaignDetail {
     description: string | null;
     platform: string | null;
     postback_platform: "trackier" | "trackix" | "offer18" | "custom";
+    click_id_param?: string | null; advertiser_click_id_param?: string | null;
+    event_param?: string | null; campaign_title_param?: string | null;
     postback_config: Record<string, string>;
     payout_min: number | null;
     payout_max: number | null;
@@ -50,12 +52,11 @@ export function CampaignEditPage() {
           advertiser_tracking_url: c.advertiser_tracking_url ?? "",
           logo_url: c.logo_url ?? "",
           description: c.description ?? "",
-          platform: c.platform ?? "",
-          postback_platform: c.postback_platform,
-          // Secret fields are masked ("***") by the API on read — left blank so an
-          // unintentional edit can't silently resubmit the mask string as the real value.
-          postback_endpoint: c.postback_config.endpoint && c.postback_config.endpoint !== "***" ? c.postback_config.endpoint : "",
-          postback_api_key: "",
+          postback_platform: c.postback_platform === "trackix" ? "custom" : c.postback_platform,
+          click_id_param: c.click_id_param ?? "",
+          advertiser_click_id_param: c.advertiser_click_id_param ?? "",
+          event_param: c.event_param ?? "",
+          campaign_title_param: c.campaign_title_param ?? "",
           payout_min: c.payout_min != null ? String(c.payout_min) : "",
           payout_max: c.payout_max != null ? String(c.payout_max) : "",
           daily_cap: c.daily_cap != null ? String(c.daily_cap) : "",

@@ -33,6 +33,8 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
       { to: "/conversion-review", label: "Conversion Review", icon: IconAudit },
       { to: "/tracking-links", label: "Tracking Links", icon: IconLink },
       { to: "/reports", label: "Reports", icon: IconReports },
+      { to: "/click-report", label: "Click Report", icon: IconReports },
+      { to: "/offline-report", label: "Offline Report", icon: IconAudit },
       { to: "/financials", label: "Financials", icon: IconFinancial },
       { to: "/integrations", label: "Integrations", icon: IconIntegrations },
     ],
@@ -67,6 +69,8 @@ const MANAGER_NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
       { to: "/manager/access-requests", label: "Access Requests", icon: IconUsers },
       { to: "/manager/conversion-review", label: "Conversion Review", icon: IconAudit },
       { to: "/manager/reports", label: "Reports", icon: IconReports },
+      { to: "/manager/click-report", label: "Click Report", icon: IconReports },
+      { to: "/manager/offline-report", label: "Offline Report", icon: IconAudit },
       { to: "/manager/financials", label: "Financials", icon: IconFinancial },
     ],
   },
@@ -99,6 +103,7 @@ const PUBLISHER_NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
         children: [
           { to: "/publisher/reports?tab=conversion", label: "Conversion Report" },
           { to: "/publisher/reports?tab=clicks", label: "Clicks Report" },
+          { to: "/publisher/click-report", label: "Click Report (IP)" },
           { to: "/publisher/reports?tab=campaign", label: "Campaign Report" },
           { to: "/publisher/reports?tab=export", label: "Export Center" },
           { to: "/publisher/reports?tab=postback", label: "Postback Logs" },
@@ -153,8 +158,28 @@ function GroupNav({ item, onNavigate, collapsed, onExpand }: { item: GroupItem; 
   );
 }
 
-export function Sidebar({ open, onClose, collapsed = false, onToggleCollapse }: { open: boolean; onClose: () => void; collapsed?: boolean; onToggleCollapse?: () => void }) {
+const NARROW_QUERY = "(max-width: 880px)";
+
+/** True on phones/tablets where the sidebar is a slide-in drawer instead of a docked column. */
+function useIsNarrow(): boolean {
+  const [narrow, setNarrow] = useState<boolean>(() => typeof window !== "undefined" && window.matchMedia(NARROW_QUERY).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(NARROW_QUERY);
+    const update = () => setNarrow(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+  return narrow;
+}
+
+export function Sidebar({ open, onClose, collapsed: collapsedProp = false, onToggleCollapse }: { open: boolean; onClose: () => void; collapsed?: boolean; onToggleCollapse?: () => void }) {
   const { user } = useAuth();
+  const isNarrow = useIsNarrow();
+  // The saved "collapsed" flag only applies to the docked desktop sidebar. In the drawer it must
+  // never hide labels or sub-menus, and the arrow there simply closes the drawer.
+  const collapsed = collapsedProp && !isNarrow;
+  const onArrowClick = () => (isNarrow ? onClose() : onToggleCollapse?.());
   const sections =
     user?.role === "manager"
       ? MANAGER_NAV_SECTIONS
@@ -180,13 +205,13 @@ export function Sidebar({ open, onClose, collapsed = false, onToggleCollapse }: 
   return (
     <>
       <div className={`qx-sidebar-backdrop ${open ? "open" : ""}`} onClick={onClose} aria-hidden="true" />
-      <aside className={`qx-sidebar ${open ? "open" : ""}${collapsed ? " collapsed" : ""}`} data-testid="sidebar" aria-label="Sidebar">
+      <aside className={`qx-sidebar ${open ? "open" : ""}${collapsed ? " collapsed" : ""}${user?.role === "publisher" ? " qx-sidebar-pub" : ""}`} data-testid="sidebar" aria-label="Sidebar">
         <div className="qx-sidebar-brand">
           <img src="/quantix-logo-mark.png" alt="QuantiX" className="qx-sidebar-brand-mark" />
           <span className="qx-sidebar-brand-name">QuantiX</span>
           {onToggleCollapse && (
-            <button type="button" className="qx-icon-btn qx-collapse-btn" onClick={onToggleCollapse} data-testid="sidebar-collapse-toggle"
-              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} aria-pressed={collapsed} title={collapsed ? "Expand sidebar" : "Collapse sidebar"}>
+            <button type="button" className="qx-icon-btn qx-collapse-btn" onClick={onArrowClick} data-testid="sidebar-collapse-toggle"
+              aria-label={isNarrow ? "Close menu" : collapsed ? "Expand sidebar" : "Collapse sidebar"} aria-pressed={isNarrow ? undefined : collapsed} title={isNarrow ? "Close menu" : collapsed ? "Expand sidebar" : "Collapse sidebar"}>
               {collapsed ? <IconChevronRight width={15} height={15} /> : <IconChevronLeft width={15} height={15} />}
             </button>
           )}

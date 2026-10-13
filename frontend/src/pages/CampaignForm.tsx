@@ -13,10 +13,11 @@ export interface CampaignFormValues {
   advertiser_tracking_url: string;
   logo_url: string;
   description: string;
-  platform: string;
-  postback_platform: "trackier" | "trackix" | "offer18" | "custom";
-  postback_endpoint: string;
-  postback_api_key: string;
+  postback_platform: "trackier" | "offer18" | "custom";
+  click_id_param: string;            // advertiser-panel parameter that carries the Quantix click id
+  advertiser_click_id_param: string; // parameter the advertiser's postback uses for its own click id
+  event_param: string;               // parameter carrying the event / goal name
+  campaign_title_param: string;      // parameter carrying the campaign title
   payout_min: string;
   payout_max: string;
   daily_cap: string;
@@ -36,10 +37,11 @@ export const EMPTY_CAMPAIGN_FORM: CampaignFormValues = {
   advertiser_tracking_url: "",
   logo_url: "",
   description: "",
-  platform: "",
-  postback_platform: "custom",
-  postback_endpoint: "",
-  postback_api_key: "",
+  postback_platform: "trackier",
+  click_id_param: "p1",
+  advertiser_click_id_param: "click_id",
+  event_param: "goal_name",
+  campaign_title_param: "",
   payout_min: "",
   payout_max: "",
   daily_cap: "",
@@ -53,6 +55,20 @@ export const EMPTY_CAMPAIGN_FORM: CampaignFormValues = {
   events: [{ event_name: "Install", payout: 0, completion_source: "online" }],
 };
 
+/** Parameter names each advertiser panel accepts for carrying our click id. Custom is free text. */
+const CLICK_ID_CHOICES: Record<CampaignFormValues["postback_platform"], string[]> = {
+  trackier: ["p1", "p2", "p3", "p4", "p5", "click_id"],
+  offer18: ["aff_sub1", "aff_sub2", "aff_sub3", "aff_sub4", "aff_sub5", "aff_click_id", "sub_aff_id"],
+  custom: [],
+};
+
+/** Starting values when the panel changes — chosen so the two click-id parameters never collide. */
+const PLATFORM_DEFAULTS: Record<CampaignFormValues["postback_platform"], { click: string; adv: string; event: string }> = {
+  trackier: { click: "p1", adv: "click_id", event: "goal_name" },
+  offer18: { click: "aff_sub1", adv: "aff_click_id", event: "event_token" },
+  custom: { click: "", adv: "", event: "" },
+};
+
 /** Converts form state (all strings, for controlled inputs) into the JSON body the API expects. */
 export function toApiPayload(v: CampaignFormValues) {
   return {
@@ -61,12 +77,13 @@ export function toApiPayload(v: CampaignFormValues) {
     advertiser_tracking_url: v.advertiser_tracking_url || null,
     logo_url: v.logo_url || null,
     description: v.description || null,
-    platform: v.platform || null,
+    platform: v.advertiser_name || null,
     postback_platform: v.postback_platform,
-    postback_config: {
-      ...(v.postback_endpoint ? { endpoint: v.postback_endpoint } : {}),
-      ...(v.postback_api_key ? { api_key: v.postback_api_key } : {}),
-    },
+    postback_config: {},
+    click_id_param: v.click_id_param.trim() || null,
+    advertiser_click_id_param: v.advertiser_click_id_param.trim() || null,
+    event_param: v.event_param.trim() || null,
+    campaign_title_param: v.campaign_title_param.trim() || null,
     payout_min: v.payout_min === "" ? null : Number(v.payout_min),
     payout_max: v.payout_max === "" ? null : Number(v.payout_max),
     daily_cap: v.daily_cap === "" ? null : Number(v.daily_cap),
@@ -127,30 +144,46 @@ export function CampaignForm({ value, onChange }: { value: CampaignFormValues; o
         <label htmlFor="c-desc">Description / Instructions</label>
         <textarea id="c-desc" className="qx-textarea" value={value.description} onChange={(e) => set("description", e.target.value)} />
       </div>
-      <div className="qx-field">
-        <label htmlFor="c-platform">Platform (free text)</label>
-        <input id="c-platform" className="qx-input" placeholder="e.g. Direct, VCommission, HIQ…" value={value.platform} onChange={(e) => set("platform", e.target.value)} />
-      </div>
-
-      <div className="qx-section-title">Postback</div>
+      <div className="qx-section-title">Postback &amp; Click ID</div>
       <div className="qx-row">
         <div className="qx-field">
-          <label htmlFor="c-pb-platform">Postback platform</label>
-          <select id="c-pb-platform" className="qx-select" value={value.postback_platform} onChange={(e) => set("postback_platform", e.target.value as CampaignFormValues["postback_platform"]) }>
+          <label htmlFor="c-pb-platform">Advertiser panel</label>
+          <select id="c-pb-platform" className="qx-select" value={value.postback_platform}
+            onChange={(e) => {
+              const p = e.target.value as CampaignFormValues["postback_platform"];
+              const d = PLATFORM_DEFAULTS[p];
+              onChange({ ...value, postback_platform: p, click_id_param: d.click, advertiser_click_id_param: d.adv, event_param: d.event });
+            }}>
             <option value="trackier">Trackier</option>
-            <option value="trackix">Trackix</option>
             <option value="offer18">Offer18</option>
             <option value="custom">Custom</option>
           </select>
         </div>
         <div className="qx-field">
-          <label htmlFor="c-pb-endpoint">Postback endpoint</label>
-          <input id="c-pb-endpoint" className="qx-input" value={value.postback_endpoint} onChange={(e) => set("postback_endpoint", e.target.value)} />
+          <label htmlFor="c-pb-clickparam">Quantix click id goes in parameter</label>
+          {CLICK_ID_CHOICES[value.postback_platform].length > 0 ? (
+            <select id="c-pb-clickparam" className="qx-select" value={value.click_id_param} onChange={(e) => set("click_id_param", e.target.value)}>
+              {CLICK_ID_CHOICES[value.postback_platform].map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+          ) : (
+            <input id="c-pb-clickparam" className="qx-input" placeholder="e.g. sub1" value={value.click_id_param} onChange={(e) => set("click_id_param", e.target.value)} />
+          )}
+          <div className="qx-hint">Every click is sent to the advertiser with our id in this parameter, and the postback brings it back through the same one. Publishers cannot use it.</div>
+        </div>
+      </div>
+      <div className="qx-row">
+        <div className="qx-field">
+          <label htmlFor="c-pb-advparam">Advertiser click id parameter</label>
+          <input id="c-pb-advparam" className="qx-input" placeholder="e.g. click_id" value={value.advertiser_click_id_param} onChange={(e) => set("advertiser_click_id_param", e.target.value)} />
+        </div>
+        <div className="qx-field">
+          <label htmlFor="c-pb-eventparam">Event / goal parameter</label>
+          <input id="c-pb-eventparam" className="qx-input" placeholder="e.g. goal_name, event, goal_title" value={value.event_param} onChange={(e) => set("event_param", e.target.value)} />
         </div>
       </div>
       <div className="qx-field">
-        <label htmlFor="c-pb-key">Postback API key (stored server-side; masked when viewing this campaign later)</label>
-        <input id="c-pb-key" className="qx-input" type="password" value={value.postback_api_key} onChange={(e) => set("postback_api_key", e.target.value)} />
+        <label htmlFor="c-pb-titleparam">Campaign title parameter (optional)</label>
+        <input id="c-pb-titleparam" className="qx-input" placeholder="e.g. campaign_title, camp_name" value={value.campaign_title_param} onChange={(e) => set("campaign_title_param", e.target.value)} />
       </div>
 
       <div className="qx-section-title">Payout &amp; Caps</div>

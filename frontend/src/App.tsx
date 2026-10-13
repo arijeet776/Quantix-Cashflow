@@ -20,6 +20,8 @@ import { FinancialsPage } from "./pages/FinancialsPage";
 import { SecurityOpsPage } from "./pages/SecurityOpsPage";
 import { AccessRequestsPage } from "./pages/AccessRequestsPage";
 import { ConversionReviewPage } from "./pages/ConversionReviewPage";
+import { ClickReportPage } from "./pages/ClickReportPage";
+import { OfflineReportPage } from "./pages/OfflineReportPage";
 import { PublisherCampaignDetailPage } from "./pages/publisher/PublisherCampaignDetailPage";
 import { PublisherBrowsePage } from "./pages/publisher/PublisherBrowsePage";
 import { PublisherReportsPage } from "./pages/publisher/PublisherReportsPage";
@@ -90,6 +92,11 @@ export default function App() {
           <Route path="/financials" element={<Protected roles={SUPER_ADMIN}><FinancialsPage /></Protected>} />
           <Route path="/access-requests" element={<Protected roles={SUPER_ADMIN}><AccessRequestsPage /></Protected>} />
           <Route path="/conversion-review" element={<Protected roles={SUPER_ADMIN}><ConversionReviewPage /></Protected>} />
+          <Route path="/click-report" element={<Protected roles={SUPER_ADMIN}><ClickReportPage /></Protected>} />
+          <Route path="/offline-report" element={<Protected roles={SUPER_ADMIN}><OfflineReportPage /></Protected>} />
+          <Route path="/manager/click-report" element={<Protected roles={MANAGER}><ClickReportPage /></Protected>} />
+          <Route path="/manager/offline-report" element={<Protected roles={MANAGER}><OfflineReportPage /></Protected>} />
+          <Route path="/publisher/click-report" element={<Protected roles={["publisher"]}><ClickReportPage /></Protected>} />
           <Route path="/manager/access-requests" element={<Protected roles={MANAGER}><AccessRequestsPage /></Protected>} />
           <Route path="/manager/conversion-review" element={<Protected roles={MANAGER}><ConversionReviewPage /></Protected>} />
           <Route path="/publisher/campaigns/:campaignId" element={<Protected roles={["publisher"]}><PublisherCampaignDetailPage /></Protected>} />

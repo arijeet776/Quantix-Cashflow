@@ -12,7 +12,7 @@ interface Tally { label: string; count: number }
 interface Detail {
   campaign_id: string; name: string; status: string; logo_url: string | null; description: string | null;
   category: string | null; kind: string; tracking_only: boolean; countries: string[];
-  approval_mode: "promote_immediately" | "requires_approval"; tracking_window_hours: number | null;
+  approval_mode: "promote_immediately" | "requires_approval"; tracking_window_hours: number | null; reserved_slot: number | null;
   events: { event_name: string; payout: number; completion_source: string }[]; max_payout: number | null;
   access_status: "pending" | "approved" | "rejected" | null; tracking_url: string | null;
   analytics: { total_clicks: number; countries: number; by_os: Tally[]; by_browser: Tally[]; by_country: Tally[]; by_city: Tally[] };
@@ -84,7 +84,7 @@ export function PublisherCampaignDetailPage() {
   // {click_id} typed into any slot is expanded server-side to the Quantix click id.
   const finalUrl = useMemo(() => {
     if (!d?.tracking_url) return "";
-    const q = params.map((v, i) => (v.trim() ? `p${i + 1}=${v.trim()}` : "")).filter(Boolean).join("&");
+    const q = params.map((v, i) => (v.trim() && i + 1 !== d.reserved_slot ? `p${i + 1}=${v.trim()}` : "")).filter(Boolean).join("&");
     if (!q) return d.tracking_url;
     return d.tracking_url + (d.tracking_url.includes("?") ? "&" : "?") + q;
   }, [d, params]);
@@ -150,16 +150,16 @@ export function PublisherCampaignDetailPage() {
             <div className="qx-param-block">
               <div style={{ fontWeight: 700, fontSize: 17 }}>Parameter Configuration</div>
               <div className="qx-panel-sub" style={{ marginBottom: 10 }}>Append custom parameters to track campaigns. Type <code>{"{click_id}"}</code> in any slot and Quantix will put its own unique click ID there.</div>
-              <span className="qx-tag" style={{ color: "var(--qx-accent)" }}>10 Slots Available</span>
+              <span className="qx-tag" style={{ color: "var(--qx-accent)" }}>{d.reserved_slot ? 9 : 10} Slots Available</span>
               <div className="qx-param-grid" style={{ marginTop: 14 }}>
-                {params.map((v, i) => (
+                {params.map((v, i) => (i + 1 === d.reserved_slot ? null : (
                   <div key={i}>
                     <div className="qx-param-label">P{i + 1}</div>
                     <input className="qx-input" placeholder={i < 2 ? `Sub ID ${i + 1}` : `Param ${i + 1}`} value={v}
                       onChange={(e) => setParams((p) => p.map((x, j) => (j === i ? e.target.value : x)))} />
                     {i === 0 && <button type="button" className="qx-tag" style={{ marginTop: 6, cursor: "pointer" }} onClick={() => setParams((p) => p.map((x, j) => (j === 0 ? "{click_id}" : x)))}>Use {"{click_id}"}</button>}
                   </div>
-                ))}
+                )))}
               </div>
             </div>
           </div>

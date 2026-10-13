@@ -25,11 +25,15 @@ const P_COLS = Array.from({ length: 10 }, (_, i) => ({ key: `p${i + 1}`, label: 
 const PAGE_SIZE = 20;
 
 type PValues = { p1: string | null; p2: string | null; p3: string | null; p4: string | null; p5: string | null; p6: string | null; p7: string | null; p8: string | null; p9: string | null; p10: string | null };
+interface ConvEvent {
+  conversion_id: string; event: string | null; status: string | null; approval_status: string;
+  payout: number | null; currency: string | null; conversion_created_at: string; postback_received_at: string | null;
+}
+// One row per Quantix click ID; `events` are the badges (Install, Register, KYC, ...).
 interface Conv extends PValues {
-  conversion_id: string; campaign_id: string; campaign_name: string | null; event: string | null; status: string | null;
-  approval_status: string; payout: number | null; currency: string | null;
-  quantix_click_id: string; conversion_created_at: string;
+  quantix_click_id: string; campaign_id: string; campaign_name: string | null; date: string;
   country: string | null; state: string | null; city: string | null; ip: string | null;
+  events: ConvEvent[]; total_payout: number; currency: string | null;
 }
 interface Click extends PValues {
   quantix_click_id: string; campaign_id: string; campaign_name: string | null; click_created_at: string;
@@ -221,16 +225,28 @@ export function PublisherReportsPage() {
             { key: "status", label: "Status" }, { key: "payout", label: "Payout" }, ...P_COLS]} />
           <RowTable<Conv>
             rows={conversions ?? []} loading={conversions === null} empty="No conversions yet."
-            keyField="conversion_id"
+            keyField="quantix_click_id"
             cols={([
-              { key: "date", label: "Date", render: (r) => formatDateTime(r.conversion_created_at) },
+              { key: "date", label: "Date", render: (r) => formatDateTime(r.date) },
               { key: "click", label: "Click ID", render: (r) => <span className="qx-code-pill">{r.quantix_click_id}</span> },
               { key: "campaign", label: "Campaign", render: (r) => campName(r.campaign_id, r.campaign_name) },
               { key: "location", label: "Location", render: (r) => formatLocation(r.city, r.state, r.country) },
               { key: "ip", label: "IP", render: (r) => r.ip ?? "" },
-              { key: "event", label: "Event/Goal", render: (r) => r.event ? <span className="qx-tag ok" data-testid="conv-event">{r.event}</span> : "" },
-              { key: "status", label: "Status", render: (r) => <StatusBadge status={r.approval_status} /> },
-              { key: "payout", label: "Payout", render: (r) => formatPayout(r.payout, r.currency) },
+              { key: "event", label: "Event/Goal", render: (r) => (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {r.events.map((e) => (
+                    <span key={e.conversion_id} className="qx-tag ok" data-testid="conv-event">
+                      {e.event ?? "Unspecified"} · {formatPayout(e.payout, e.currency)}
+                    </span>
+                  ))}
+                </div>
+              ) },
+              { key: "status", label: "Status", render: (r) => (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {r.events.map((e) => <StatusBadge key={e.conversion_id} status={e.approval_status} />)}
+                </div>
+              ) },
+              { key: "payout", label: "Payout", render: (r) => formatPayout(r.total_payout, r.currency) },
               ...P_COLS.map((c) => ({ key: c.key, label: c.label, render: (r: Conv) => pCell(r, c.key) })),
             ] as Col<Conv>[]).filter((c) => convCols.includes(c.key))}
           />

@@ -18,7 +18,7 @@ interface PublisherDashboard {
     month_label: string;
     month: Totals & { clicks: number };
     lifetime: Totals;
-    monthly: { month: string; conversions: number; earnings: number }[];
+    daily: { day: string; label: string; conversions: number; earnings: number }[];
     top_campaigns: { campaign_id: string; name: string; clicks: number; conversions: number; earnings: number }[];
   };
   recent_conversions: {
@@ -28,7 +28,6 @@ interface PublisherDashboard {
 }
 
 const inr = (v: number) => `₹${v.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
-const monthName = (ym: string) => new Date(`${ym}-01T00:00:00`).toLocaleString("en-US", { month: "short", year: "numeric" });
 
 function StatCard({ icon, label, value, hint }: { icon: ReactNode; label: string; value: string; hint?: ReactNode }) {
   return (
@@ -73,7 +72,7 @@ export function PublisherHomePage() {
 
       {data && st && (
         <>
-          <div className="qx-stat-grid">
+          <div className="qx-stat-grid qx-stat-grid-hiq">
             <StatCard icon={<IconLink width={22} height={22} />} label={`${st.month_label} Clicks`} value={st.month.clicks.toLocaleString("en-US")} />
             <StatCard icon={<IconReports width={22} height={22} />} label={`${st.month_label} Conversions`} value={st.month.conversions.toLocaleString("en-US")}
               hint={<><span className="qx-up">↗ {cr(st.month.conversions, st.month.clicks)}%</span> CR</>} />
@@ -88,12 +87,12 @@ export function PublisherHomePage() {
 
           <div className="qx-chart-grid">
             <div className="qx-card qx-chart-card">
-              <div className="qx-chart-title"><span style={{ color: "var(--qx-success)" }}>∿</span> Conversions Trend</div>
-              <LineChart color="#10b981" points={st.monthly.map((m) => ({ label: monthName(m.month), value: m.conversions }))} />
+              <div className="qx-chart-title"><span style={{ color: "var(--qx-success)" }}>∿</span> Conversions Trend <span className="qx-hint">({st.month_label})</span></div>
+              <LineChart color="#10b981" points={st.daily.map((d) => ({ label: d.label, value: d.conversions }))} />
             </div>
             <div className="qx-card qx-chart-card">
-              <div className="qx-chart-title"><IconReports width={16} height={16} style={{ color: "var(--qx-accent)" }} /> Earnings Overview</div>
-              <LineChart color="var(--accent-primary)" format={(v) => `${Math.round(v)}`} points={st.monthly.map((m) => ({ label: monthName(m.month), value: m.earnings }))} />
+              <div className="qx-chart-title"><IconReports width={16} height={16} style={{ color: "var(--qx-accent)" }} /> Earnings Overview <span className="qx-hint">({st.month_label})</span></div>
+              <LineChart color="var(--accent-primary)" format={(v) => `${Math.round(v)}`} points={st.daily.map((d) => ({ label: d.label, value: d.earnings }))} />
             </div>
           </div>
 

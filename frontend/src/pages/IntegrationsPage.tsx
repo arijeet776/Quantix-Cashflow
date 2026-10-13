@@ -76,11 +76,11 @@ export function IntegrationsPage() {
     setError(null);
     setCreatedUrl(null);
     try {
-      const r = await api.post<Endpoint & { inbound_url: string }>("/admin/postback/endpoints", {
+      const r = await api.post<Endpoint & { inbound_url: string; advertiser_postback_url?: string }>("/admin/postback/endpoints", {
         campaign_id: campaignId,
         platform,
       });
-      setCreatedUrl(r.data.inbound_url);
+      setCreatedUrl(r.data.advertiser_postback_url ?? r.data.inbound_url);
       loadEndpoints();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to create endpoint");
@@ -155,7 +155,7 @@ export function IntegrationsPage() {
 
         {createdUrl && (
           <div style={{ marginTop: 16 }} data-testid="endpoint-created">
-            <div className="qx-kpi-label">Inbound postback URL — paste this into the external platform</div>
+            <div className="qx-kpi-label">Postback URL — paste this into the advertiser panel (click id, event and title macros are already added)</div>
             <code className="qx-code" data-testid="endpoint-created-url">{createdUrl}</code>
             <div style={{ marginTop: 8 }}>
               <button
