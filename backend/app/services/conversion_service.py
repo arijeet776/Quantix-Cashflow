@@ -100,8 +100,13 @@ async def process_inbound(platform: str, token: str, params: dict, request_id: s
     if campaign is None or campaign["status"] not in _CONVERSION_ACCEPTING:
         return await finalize("rejected", 200, error="campaign_not_accepting")
 
+    config = await campaign_repository.get_current_config(campaign) or {}
+    mapping = {k: config.get(k) for k in ("click_id_param", "advertiser_click_id_param", "campaign_title_param", "event_param")}
     try:
-        canonical = postback_adapters.normalize(platform, params)
+        if mapping.get("click_id_param"):
+            canonical = postback_adapters.normalize_mapped(platform, params, mapping)
+        else:  # campaign created before macro mapping existed — legacy per-platform adapter
+            canonical = postback_adapters.normalize(platform, params)
     except ValidationAppError as exc:
         return await finalize("malformed", 400, error=str(exc))
 
@@ -115,6 +120,16 @@ async def process_inbound(platform: str, token: str, params: dict, request_id: s
 
     idem_key = _idempotency_key(platform, canonical, qx_click_id)
     now = datetime.now(timezone.utc)
+
+    # Keep the advertiser's own click id next to ours (Super Admin sees both).
+    if canonical.get("external_click_id") and not click.get("external_click_id"):
+        try:
+            await get_database()["clicks"].update_one(
+                {"quantix_click_id": qx_click_id},
+                {"$set": {"external_click_id": canonical["external_click_id"]}},
+            )
+        except Exception as exc:  # noqa: BLE001 — bookkeeping only, never blocks the conversion
+            logger.warning("could not store advertiser click id for %s: %s", qx_click_id, exc)
 
     # Idempotency (spec §23): duplicate postback → existing conversion; a
     # changed status is a legitimate update to the SAME conversion (§20).
@@ -151,6 +166,7 @@ async def process_inbound(platform: str, token: str, params: dict, request_id: s
         "external_conversion_id": canonical.get("external_conversion_id"),
         "event": canonical.get("event"),
         "goal": canonical.get("goal"),
+        "campaign_title": canonical.get("campaign_title"),
         "raw_event_value": canonical.get("raw_event_value"),
         "raw_goal_value": canonical.get("raw_goal_value"),
         "status": canonical.get("status"),

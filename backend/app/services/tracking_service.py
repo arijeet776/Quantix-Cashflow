@@ -70,6 +70,18 @@ def sanitize_click_params(query_params) -> dict[str, str]:
     return clean
 
 
+def inject_query_param(url: str, name: str, value: str) -> str:
+    """Set `name=value` on the URL's query, replacing any existing value (and
+    any left-over `{macro}` placeholder) so the Quantix click id always lands
+    in exactly the parameter the Super Admin chose for this campaign."""
+    from urllib.parse import quote, urlsplit, urlunsplit
+
+    parts = urlsplit(url)
+    kept = [pair for pair in parts.query.split("&") if pair and pair.partition("=")[0].lower() != name.lower()]
+    kept.append(f"{name}={quote(value, safe='')}")
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, "&".join(kept), parts.fragment))
+
+
 async def _publisher_account_active(publisher: dict) -> bool:
     db = get_database()
     user = await db["users"].find_one({"_id": ObjectId(publisher["user_id"])})
@@ -280,8 +292,14 @@ async def process_click(
             await _auto_pause_for_cap(campaign, "daily")
             return {"action": "reject", "status": 410, "message": CAP_REACHED_MESSAGE}
 
-    # 6. Click creation — one immutable QXCLK id, full parameter snapshot (§9/§10).
+    # 6. Click creation — one immutable QNCTX id, full parameter snapshot (§9/§10).
     params = sanitize_click_params(query_params)
+    # The parameter carrying OUR click id for this campaign is reserved: if a
+    # publisher also sends it, their value is dropped (never stored, never
+    # forwarded) so it cannot collide with or spoof the Quantix click id.
+    reserved = (config.get("click_id_param") or "").lower()
+    if reserved:
+        params.pop(reserved, None)
     click_doc: dict = {
         "campaign_id": campaign_id,
         "campaign_code": campaign_code,
@@ -335,5 +353,7 @@ async def process_click(
     }
     macro_values.update(params)
     redirect_url, _used = substitute_macros(destination, macro_values)
+    if reserved:
+        redirect_url = inject_query_param(redirect_url, reserved, click_id)
 
     return {"action": "redirect", "url": redirect_url, "click_id": click_id}

@@ -103,6 +103,15 @@ async def update_tracking_domain(raw_url: str, actor_user_id: str, reason: str |
     settings = get_settings()
     normalized = validate_tracking_base_url(raw_url, is_production=settings.is_production)
 
+    # Tracking links are served by the BACKEND (click route at the app root). If the frontend
+    # host (a CORS origin, e.g. the Netlify site) is used, every link returns 404.
+    frontend_hosts = {urlsplit(o).hostname for o in settings.allowed_origins_list if o and o != "*"}
+    if urlsplit(normalized).hostname in frontend_hosts:
+        raise ValidationAppError(
+            "Tracking domain must be the BACKEND (API) URL, not the frontend site. "
+            "Use the Render service URL, e.g. https://<your-service>.onrender.com"
+        )
+
     existing = await settings_repository.get_setting(settings_repository.TRACKING_DOMAIN_KEY)
     old_value = existing["value"] if existing else None
 

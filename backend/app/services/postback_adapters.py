@@ -19,6 +19,7 @@ Mapping provenance:
 from app.core.exceptions import ValidationAppError
 
 MAX_RAW_PARAMS = 60
+QX_CLICK_PREFIXES = ("QNCTX", "QXCLK_")
 
 
 class CanonicalPostback(dict):
@@ -70,7 +71,9 @@ def _utms(params: dict) -> dict:
 
 def _qx_click(value) -> str | None:
     """A platform field carrying our own click id resolves directly (spec §16 step 1)."""
-    if value and str(value).startswith("QXCLK_"):
+    # QNCTX is the current id format; QXCLK_ is kept so clicks issued before
+    # the format change still resolve when their late postbacks arrive.
+    if value and str(value).startswith(QX_CLICK_PREFIXES):
         return str(value)
     return None
 
@@ -151,15 +154,62 @@ PLATFORM_METADATA = {
         "methods": ["GET", "POST"],
         "verified": True,
     },
-    "trackix": {
-        "label": "Trackix",
-        "required": ["sub1"],
-        "optional": ["sub2"],
+    "custom": {
+        "label": "Custom",
+        "required": [],
+        "optional": [],
         "methods": ["GET", "POST"],
-        "verified": False,
-        "note": "Awaiting official Trackix documentation — event/click/status "
-                "parameter names are intentionally unmapped.",
+        "verified": True,
+        "note": "Parameter names are typed per campaign at creation time.",
     },
+}
+
+
+def normalize_mapped(platform: str, params: dict, mapping: dict) -> CanonicalPostback:
+    """Per-campaign mapping (typed/selected when the campaign was created).
+
+    Works for every platform including custom: the parameter that carried our
+    click id outbound is the one that brings it back, so nothing is guessed.
+    Event / advertiser click id / campaign title come from the parameter names
+    the Super Admin entered. Status and money fields keep their conventional
+    names when the advertiser sends them.
+    """
+    if not isinstance(params, dict) or not params:
+        raise ValidationAppError("Malformed postback: empty parameter set")
+    canonical = _base(platform, params)
+    flat = {str(k).lower(): v for k, v in params.items()}
+
+    def pick(name):
+        return flat.get(str(name).lower()) if name else None
+
+    canonical["quantix_click_id"] = _qx_click(pick(mapping.get("click_id_param")))
+    adv = pick(mapping.get("advertiser_click_id_param"))
+    canonical["external_click_id"] = adv if adv and not _qx_click(adv) else None
+    canonical["agency_click_id"] = canonical["external_click_id"]
+    event = pick(mapping.get("event_param"))
+    canonical["event"] = event
+    canonical["goal"] = event
+    canonical["raw_event_value"] = event
+    canonical["raw_goal_value"] = event
+    canonical["campaign_title"] = pick(mapping.get("campaign_title_param"))
+    canonical["status"] = flat.get("status")
+    canonical["raw_status"] = flat.get("status")
+    canonical["external_conversion_id"] = flat.get("txn_id") or flat.get("transaction_id") or flat.get("conversion_id")
+    canonical["advertiser_revenue"] = flat.get("revenue")
+    canonical["upstream_payout"] = flat.get("payout")
+    canonical["sale_amount"] = flat.get("sale_amount")
+    canonical["currency"] = flat.get("currency")
+    canonical["sub_ids"] = _subs(flat, "p") | _subs(flat, "sub") | _subs(flat, "aff_sub")
+    canonical["utm"] = _utms(flat)
+    return canonical
+
+
+# Macro names an advertiser panel accepts for "carry the click id" — drives the
+# dropdown in the campaign form. Custom is free text (empty list).
+CLICK_ID_PARAM_CHOICES = {
+    "trackier": ["click_id", "p1", "p2", "p3", "p4", "p5"],
+    "offer18": ["aff_click_id", "aff_sub1", "aff_sub2", "aff_sub3", "aff_sub4", "aff_sub5", "sub_aff_id"],
+    "custom": [],
 }
 
 

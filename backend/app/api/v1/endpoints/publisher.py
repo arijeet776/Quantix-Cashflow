@@ -126,16 +126,20 @@ async def publisher_conversions(
     approval_status: str | None = Query(default=None, pattern="^(pending_report|confirmed|rejected)$"),
     search: str | None = Query(default=None, max_length=64),
 ):
-    """Publisher-safe projection — payout is what THEY earn; advertiser
-    revenue/upstream payout/margin are deliberately absent (spec §52)."""
+    """Conversion report: ONE row per Quantix click ID. Each event (Install,
+    Register, KYC, ...) is a badge with its payout on that click's row; the row
+    date stays the original click date. Publisher-safe projection — payout is
+    what THEY earn; advertiser revenue/upstream payout/margin are absent (spec §52)."""
     profile = _profile_doc or await _profile(user)
     docs = await conversion_repository.list_conversions_filtered(
-        profile["publisher_id"], (page - 1) * page_size, page_size,
+        profile["publisher_id"], 0, prs.GROUP_FETCH_CAP,
         campaign_id, date_from, date_to, approval_status, search,
     )
     names = await prs.campaign_name_map(profile["publisher_id"])
     clicks = await prs.clicks_by_ids([c["quantix_click_id"] for c in docs])
-    return [prs.conversion_row(c, clicks.get(c["quantix_click_id"]), names) for c in docs]
+    groups = prs.grouped_conversion_rows(docs, clicks, names)
+    start = (page - 1) * page_size
+    return groups[start:start + page_size]
 
 
 @router.get("/conversions/event-summary")
@@ -282,6 +286,9 @@ async def publisher_campaign_detail(campaign_id: str, user: CurrentUser = Depend
         "countries": cfg.get("countries") or [],
         "approval_mode": cfg.get("approval_mode") or "promote_immediately",
         "tracking_window_hours": cfg.get("tracking_window_hours"),
+        # Which of the publisher's P1–P10 slots Quantix uses for its own click id
+        # on this campaign (None when the carrier isn't a p-slot). Never the raw name.
+        "reserved_slot": (int(str(cfg.get("click_id_param"))[1:]) if re.fullmatch(r"[pP](10|[1-9])", str(cfg.get("click_id_param") or "")) else None),
         "events": events,
         "max_payout": max((e["payout"] for e in events), default=None),
         "access_status": access["status"] if access else None,

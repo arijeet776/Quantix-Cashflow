@@ -53,7 +53,7 @@ def validate_outbound_url(raw: str) -> str:
 
 
 async def create_endpoint(campaign_id: str, platform: str, actor_user_id: str) -> dict:
-    if platform not in postback_adapters.ADAPTERS:
+    if platform not in ("trackier", "offer18", "custom"):
         raise ValidationAppError(f"Unsupported platform: {platform}")
     campaign = await campaign_repository.get_campaign(campaign_id)
     if campaign is None:
@@ -81,7 +81,33 @@ async def set_endpoint_status(endpoint_id: str, status: str, actor_user_id: str)
     return updated
 
 
-def serialize_endpoint(doc: dict, base_url: str) -> dict:
+async def campaign_mapping(campaign_id: str) -> dict:
+    """The campaign's macro mapping (click id carrier + advertiser parameter names)."""
+    campaign = await campaign_repository.get_campaign(campaign_id)
+    config = (await campaign_repository.get_current_config(campaign)) if campaign else None
+    config = config or {}
+    return {k: config.get(k) for k in ("click_id_param", "advertiser_click_id_param", "campaign_title_param", "event_param")}
+
+
+def build_advertiser_postback_url(inbound_url: str, platform: str, mapping: dict | None) -> str:
+    """The URL the Super Admin pastes into the advertiser panel. Each parameter
+    is `name={name}` — the advertiser's own macro of the same name — and the
+    parameter that carried the Quantix click id outbound is always first, so
+    the id returns through the very same macro."""
+    mapping = mapping or {}
+    names = [mapping.get(k) for k in ("click_id_param", "advertiser_click_id_param", "event_param", "campaign_title_param")]
+    names = [n for n in names if n]
+    if not mapping.get("click_id_param"):  # campaign created before macro mapping existed
+        names = list(postback_adapters.PLATFORM_METADATA.get(platform, {}).get("required", []))
+    seen, pairs = set(), []
+    for n in names:
+        if n.lower() not in seen:
+            seen.add(n.lower())
+            pairs.append(f"{n}={{{n}}}")
+    return inbound_url + ("?" + "&".join(pairs) if pairs else "")
+
+
+def serialize_endpoint(doc: dict, base_url: str, mapping: dict | None = None) -> dict:
     """The token appears ONLY here, at creation time, for the admin to copy.
     List responses exclude it (endpoint list = management view, not a secret leak)."""
     return {
@@ -94,6 +120,8 @@ def serialize_endpoint(doc: dict, base_url: str) -> dict:
         "last_received_at": doc.get("last_received_at"),
         "created_at": doc["created_at"],
         "inbound_url": f"{base_url}api/v1/postback/inbound/{doc['platform']}/{doc['token']}",
+        "advertiser_postback_url": build_advertiser_postback_url(
+            f"{base_url}api/v1/postback/inbound/{doc['platform']}/{doc['token']}", doc["platform"], mapping),
     }
 
 

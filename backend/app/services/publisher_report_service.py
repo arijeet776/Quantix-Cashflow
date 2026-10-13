@@ -82,6 +82,68 @@ def conversion_row(conv: dict, click: dict | None, campaign_names: dict[str, str
     }
 
 
+GROUP_FETCH_CAP = 5000  # conversions read per grouped report request (groups are paged in memory)
+
+
+def _as_utc(value) -> datetime:
+    if isinstance(value, datetime):
+        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+    if isinstance(value, str):
+        try:
+            dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+            return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+        except ValueError:
+            pass
+    return datetime.min.replace(tzinfo=timezone.utc)
+
+
+def grouped_conversion_rows(convs: list[dict], clicks: dict[str, dict], campaign_names: dict[str, str]) -> list[dict]:
+    """ONE row per Quantix click ID (Conversion Report only).
+
+    The row date is the ORIGINAL click date and never changes when a later event
+    arrives. Every conversion record for that click (Install, Register, KYC, ...)
+    becomes an event badge on the same row with its own payout. Publisher-safe:
+    same projection as conversion_row (no revenue / upstream payout / margin)."""
+    groups: dict[str, dict] = {}
+    for c in convs:
+        cid = c["quantix_click_id"]
+        click = clicks.get(cid)
+        row = conversion_row(c, click, campaign_names)
+        g = groups.get(cid)
+        if g is None:
+            g = {
+                "quantix_click_id": cid,
+                "campaign_id": row["campaign_id"],
+                "campaign_name": row["campaign_name"],
+                "date": (click or {}).get("click_created_at") or row["conversion_created_at"],
+                "country": row["country"], "state": row["state"], "city": row["city"], "ip": row["ip"],
+                **_p_values(click),
+                "events": [],
+                "total_payout": 0.0,
+                "currency": PLATFORM_CURRENCY,
+            }
+            groups[cid] = g
+        g["events"].append({
+            "conversion_id": row["conversion_id"],
+            "event": row["event"],
+            "status": row["status"],
+            "approval_status": row["approval_status"],
+            "payout": row["payout"],
+            "currency": row["currency"],
+            "conversion_created_at": row["conversion_created_at"],
+            "postback_received_at": row["postback_received_at"],
+        })
+        if row["approval_status"] != "rejected" and row["payout"] is not None:
+            g["total_payout"] += float(row["payout"])
+
+    out = list(groups.values())
+    for g in out:
+        g["events"].sort(key=lambda e: _as_utc(e["conversion_created_at"]))  # oldest event first
+        g["total_payout"] = round(g["total_payout"], 2)
+    out.sort(key=lambda g: _as_utc(g["date"]), reverse=True)
+    return out
+
+
 async def campaign_name_map(publisher_id: str) -> dict[str, str]:
     from app.db import campaign_repository, tracking_repository
 

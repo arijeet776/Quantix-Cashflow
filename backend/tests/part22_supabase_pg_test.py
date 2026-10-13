@@ -178,7 +178,7 @@ async def _publisher_dashboard(pubid):
             params = fn.__code__.co_varnames[:fn.__code__.co_argcount]
         except AttributeError:
             continue
-        if params and params[0] == "publisher_id" and "months" in params:
+        if params and params[0] == "publisher_id" and name == "publisher_dashboard_stats":
             return await fn(pubid)
     return None
 

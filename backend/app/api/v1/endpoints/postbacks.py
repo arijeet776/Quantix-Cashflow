@@ -43,7 +43,8 @@ async def platforms(user: CurrentUser = Depends(_super_admin_only)):
 @router.post("/endpoints", response_model=PostbackEndpointCreatedResponse)
 async def create_endpoint(body: PostbackEndpointCreateRequest, request: Request, user: CurrentUser = Depends(_super_admin_only)):
     doc = await postback_service.create_endpoint(body.campaign_id, body.platform, user.user_id)
-    return postback_service.serialize_endpoint(doc, str(request.base_url))
+    mapping = await postback_service.campaign_mapping(body.campaign_id)
+    return postback_service.serialize_endpoint(doc, str(request.base_url), mapping)
 
 
 @router.get("/endpoints", response_model=list[PostbackEndpointSafeResponse])

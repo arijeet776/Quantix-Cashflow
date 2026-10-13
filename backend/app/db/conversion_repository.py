@@ -15,7 +15,7 @@ import asyncio
 import logging
 import secrets
 import string
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from pymongo.errors import DuplicateKeyError, PyMongoError
 
@@ -356,18 +356,35 @@ async def list_for_review(manager_id: str | None, approval_status: str | None, c
         raise ServiceUnavailableError("Conversion store unavailable") from exc
 
 
-async def publisher_dashboard_stats(publisher_id: str, months: int = 12) -> dict:
-    """Own-data aggregates for the publisher dashboard. Only CONFIRMED
-    conversions count as earnings; pending_report/rejected never do."""
+IST = timezone(timedelta(hours=5, minutes=30))
+_NOT_EARNING = ("pending_report", "rejected")
+
+
+def _as_utc(v) -> datetime | None:
+    """Stored timestamps may come back as datetime or ISO string (Supabase store)."""
+    if v is None:
+        return None
+    if isinstance(v, datetime):
+        return v if v.tzinfo else v.replace(tzinfo=timezone.utc)
+    try:
+        dt = datetime.fromisoformat(str(v).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
+async def publisher_dashboard_stats(publisher_id: str) -> dict:
+    """Own-data aggregates for the publisher dashboard.
+
+    Everything time-based is the CURRENT CALENDAR MONTH in IST (the UI's
+    timezone): month totals, the day-by-day trend and the earnings overview.
+    Only CONFIRMED conversions count as earnings; pending_report/rejected never do.
+    """
     db = get_database()
-    now = datetime.now(timezone.utc)
-    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    y, m = month_start.year, month_start.month - (months - 1)
-    while m <= 0:
-        m += 12
-        y -= 1
-    series_start = month_start.replace(year=y, month=m)
-    not_earning = {"$nin": ["pending_report", "rejected"]}
+    now_ist = datetime.now(IST)
+    month_start_ist = now_ist.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    month_start = month_start_ist.astimezone(timezone.utc)
+    days_in_month_so_far = now_ist.day
     try:
         async def month_totals(since: datetime | None) -> dict:
             q: dict = {"publisher_id": publisher_id}
@@ -388,20 +405,6 @@ async def publisher_dashboard_stats(publisher_id: str, months: int = 12) -> dict
             return {"conversions": r.get("conversions", 0), "earnings": r.get("earnings", 0), "pending": r.get("pending", 0)}
 
         clicks_col = db["clicks"]
-        # The reads below are independent of one another, so they are issued
-        # concurrently (one round trip of latency instead of seven in a row).
-        # Each query and its filters are exactly the same as before.
-        series_pipeline = [
-            {"$match": {"publisher_id": publisher_id, "conversion_created_at": {"$gte": series_start}}},
-            {"$group": {
-                "_id": {"y": {"$year": "$conversion_created_at"}, "m": {"$month": "$conversion_created_at"}},
-                "conversions": {"$sum": 1},
-                "earnings": {"$sum": {"$cond": [{"$and": [
-                    {"$ne": ["$payout", None]},
-                    {"$not": [{"$in": [{"$ifNull": ["$approval_status", "confirmed"]}, ["pending_report", "rejected"]]}]}]},
-                    "$payout", 0]}},
-            }},
-        ]
         top_pipeline = [
             {"$match": {"publisher_id": publisher_id}},
             {"$group": {"_id": "$campaign_id", "conversions": {"$sum": 1},
@@ -410,9 +413,12 @@ async def publisher_dashboard_stats(publisher_id: str, months: int = 12) -> dict
                             {"$not": [{"$in": [{"$ifNull": ["$approval_status", "confirmed"]}, ["pending_report", "rejected"]]}]}]},
                             "$payout", 0]}}}},
         ]
-        (month_clicks, series, top, clicks_by_campaign, month_conv, lifetime_conv) = await asyncio.gather(
+        (month_clicks, month_rows, top, clicks_by_campaign, month_conv, lifetime_conv) = await asyncio.gather(
             clicks_col.count_documents({"publisher_id": publisher_id, "click_created_at": {"$gte": month_start}}),
-            db["conversions"].aggregate(series_pipeline).to_list(length=100),
+            db["conversions"].find(
+                {"publisher_id": publisher_id, "conversion_created_at": {"$gte": month_start}},
+                {"conversion_created_at": 1, "payout": 1, "approval_status": 1},
+            ).to_list(length=50000),
             db["conversions"].aggregate(top_pipeline).to_list(length=200),
             clicks_col.aggregate([
                 {"$match": {"publisher_id": publisher_id}},
@@ -421,15 +427,29 @@ async def publisher_dashboard_stats(publisher_id: str, months: int = 12) -> dict
             month_totals(month_start),
             month_totals(None),
         )
-        by_key = {(r["_id"]["y"], r["_id"]["m"]): r for r in series}
-        monthly = []
-        yy, mm = series_start.year, series_start.month
-        for _ in range(months):
-            r = by_key.get((yy, mm), {})
-            monthly.append({"month": f"{yy}-{mm:02d}", "conversions": r.get("conversions", 0), "earnings": r.get("earnings", 0)})
-            mm += 1
-            if mm > 12:
-                mm, yy = 1, yy + 1
+
+        # Day-by-day for the current month (IST), zero-filled up to today.
+        daily = {d: {"conversions": 0, "earnings": 0.0} for d in range(1, days_in_month_so_far + 1)}
+        for r in month_rows:
+            ts = _as_utc(r.get("conversion_created_at"))
+            if ts is None:
+                continue
+            day = ts.astimezone(IST).day
+            if day not in daily:
+                continue
+            daily[day]["conversions"] += 1
+            status = r.get("approval_status") or "confirmed"
+            if r.get("payout") is not None and status not in _NOT_EARNING:
+                daily[day]["earnings"] += float(r["payout"])
+        daily_series = []
+        for d in range(1, days_in_month_so_far + 1):
+            day_date = month_start_ist.replace(day=d)
+            daily_series.append({
+                "day": day_date.strftime("%Y-%m-%d"),
+                "label": day_date.strftime("%d %b"),
+                "conversions": daily[d]["conversions"],
+                "earnings": round(daily[d]["earnings"], 2),
+            })
 
         merged: dict = {c["_id"]: {"campaign_id": c["_id"], "clicks": c["clicks"], "conversions": 0, "earnings": 0} for c in clicks_by_campaign}
         for t in top:
@@ -439,9 +459,9 @@ async def publisher_dashboard_stats(publisher_id: str, months: int = 12) -> dict
         return {
             "month": {"clicks": month_clicks, **month_conv},
             "lifetime": lifetime_conv,
-            "monthly": monthly,
+            "daily": daily_series,
             "top_campaigns": top_campaigns,
-            "month_label": month_start.strftime("%B"),
+            "month_label": now_ist.strftime("%B %Y"),
         }
     except PyMongoError as exc:
         raise ServiceUnavailableError("Conversion store unavailable") from exc

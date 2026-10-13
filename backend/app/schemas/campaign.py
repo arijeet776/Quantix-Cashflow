@@ -60,6 +60,35 @@ class CampaignConfigFields(BaseModel):
     kind: str = Field(default="standard", pattern="^(standard|shopping|survey)$")
     tracking_only: bool = False
     countries: list[str] = Field(default_factory=list, max_length=100)
+    # Macro mapping (decided at campaign creation). click_id_param is the
+    # advertiser-panel parameter that carries OUR click id outbound (e.g. p1,
+    # aff_sub1, click_id) and comes back on the postback. The other three are
+    # the parameter names the advertiser's postback uses for its own click id,
+    # the campaign title and the event/goal.
+    click_id_param: str | None = Field(default=None, max_length=40)
+    advertiser_click_id_param: str | None = Field(default=None, max_length=40)
+    campaign_title_param: str | None = Field(default=None, max_length=40)
+    event_param: str | None = Field(default=None, max_length=40)
+
+    @field_validator("click_id_param", "advertiser_click_id_param", "campaign_title_param", "event_param")
+    @classmethod
+    def _valid_param_name(cls, v):
+        if v is None:
+            return None
+        v = v.strip()
+        if not v:
+            return None
+        import re
+        if not re.fullmatch(r"[A-Za-z0-9_]{1,40}", v):
+            raise ValueError("Parameter names may only contain letters, digits and underscore")
+        return v
+
+    @field_validator("advertiser_click_id_param")
+    @classmethod
+    def _adv_param_differs(cls, v, info):
+        if v is not None and v.lower() == (info.data.get("click_id_param") or "").lower():
+            raise ValueError("Advertiser click id parameter must differ from the parameter carrying the Quantix click id")
+        return v
 
     @field_validator("name")
     @classmethod

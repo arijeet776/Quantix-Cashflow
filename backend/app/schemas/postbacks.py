@@ -22,6 +22,7 @@ class PostbackEndpointSafeResponse(BaseModel):
 
 class PostbackEndpointCreatedResponse(PostbackEndpointSafeResponse):
     inbound_url: str  # token-bearing URL — returned only at creation time
+    advertiser_postback_url: str | None = None  # inbound_url + ?click-id/event/title macros, ready to paste in the advertiser panel
 
 
 class InboundLogItem(BaseModel):

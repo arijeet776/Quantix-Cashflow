@@ -47,7 +47,7 @@ def generate_publisher_code() -> str:
 
 
 def generate_click_id() -> str:
-    return "QXCLK_" + "".join(secrets.choice(_CLICK_ID_ALPHABET) for _ in range(12))
+    return "QNCTX" + "".join(secrets.choice(_CLICK_ID_ALPHABET) for _ in range(10))
 
 
 async def ensure_campaign_code(campaign_id: str) -> str:

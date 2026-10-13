@@ -34,13 +34,15 @@ from app.storage.sheets_adapter import (
 logger = logging.getLogger(__name__)
 
 RPC_PATH = "/rest/v1/rpc/qx_exec"
+PURGE_RPC_PATH = "/rest/v1/rpc/qx_purge_campaign"  # migrations/supabase/002_campaign_purge.sql
 
 
 class PostgrestTransport:
     """httpx transport with connection keep-alive (a warm call is one HTTPS request)."""
 
     def __init__(self, base_url: str, key: str, timeout: float = 15.0):
-        self._url = base_url.rstrip("/") + RPC_PATH
+        self._base = base_url.rstrip("/")
+        self._url = self._base + RPC_PATH
         self._timeout = timeout
         self._headers = {"apikey": key, "Content-Type": "application/json", "Accept": "application/json"}
         if key.startswith("eyJ"):  # legacy JWT service_role key; new sb_secret_* keys go in `apikey` only
@@ -60,7 +62,9 @@ class PostgrestTransport:
 
         client = self._get_client()
         try:
-            resp = await client.post(self._url, content=json.dumps(payload))
+            # _url is the RPC path to call (qx_exec by default, or another function such as qx_purge_campaign).
+            url = self._base + (_url or RPC_PATH)
+            resp = await client.post(url, content=json.dumps(payload))
         except (httpx.ConnectError, httpx.ConnectTimeout) as exc:
             raise TransientStorageError("connection failed", applied=False) from exc
         except httpx.HTTPError as exc:
@@ -111,6 +115,16 @@ class SupabaseRestAdapter(GoogleSheetsStorageAdapter):
 
     def __repr__(self) -> str:  # never expose the key
         return "<SupabaseRestAdapter>"
+
+    async def purge_campaign(self, campaign_id: str, actor_user_id: str | None) -> dict:
+        """Hard purge of ONE settled campaign: a single database transaction (see 002_campaign_purge.sql).
+        Returns the per-table row counts. Any failure means the database rolled everything back."""
+        result = await self._transport(PURGE_RPC_PATH, {"p_campaign_id": campaign_id, "p_actor": actor_user_id})
+        if not isinstance(result, dict) or result.get("success") is False or "error" in result:
+            logger.error("Campaign purge rejected or failed; nothing was deleted (%s)",
+                         (result or {}).get("error", {}).get("code") if isinstance(result, dict) else "bad response")
+            raise ServiceUnavailableError("Purge was refused or failed; nothing was deleted. Check the campaign state and retry.")
+        return result
 
     async def _call(self, url: str, body: dict, *, write: bool) -> dict:
         payload = {"req": _prep(body)}

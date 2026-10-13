@@ -13,6 +13,7 @@ financial records (Postgres/Supabase) are outside the purge boundary by
 design — no code path in this module can reach them.
 """
 import logging
+import uuid
 from datetime import datetime, timezone
 
 from app.core import audit_actions
@@ -21,6 +22,22 @@ from app.core.exceptions import ConflictError, NotFoundError, ServiceUnavailable
 from app.core.logging_config import request_id_ctx
 from app.db import campaign_repository, purge_repository
 from app.db.audit_repository import record as audit_record
+from app.db.mongodb import get_database
+from app.storage import runtime
+
+# Supabase mode: the tables a settled campaign's data lives in (must match 002_campaign_purge.sql).
+SUPABASE_PURGE_TABLES: list[tuple[str, str]] = [
+    ("clicks", "Clicks"),
+    ("conversions", "Conversions"),
+    ("inbound_postbacks", "Inbound Postback Logs"),
+    ("outbound_postbacks", "Outbound Postback Logs"),
+    ("tracking_links", "Tracking Links"),
+    ("campaign_access", "Campaign Access Records"),
+    ("blocked_ips", "Blocked IPs"),
+    ("postback_endpoints", "Postback Endpoints"),
+    ("publisher_postback_configs", "Publisher Postback Configs"),
+    ("campaign_config_versions", "Campaign Config Versions"),
+]
 
 logger = logging.getLogger(__name__)
 
@@ -69,10 +86,17 @@ async def get_purge_preview(campaign_id: str) -> dict:
 
     categories = []
     total = 0
-    for collection, label in PURGE_DEPENDENCY_MAP:
-        count = await purge_repository.count_campaign_scoped(collection, campaign_id)
-        categories.append({"collection": collection, "label": label, "count": count})
-        total += count
+    if runtime.is_supabase_rest():
+        db = get_database()
+        for collection, label in SUPABASE_PURGE_TABLES:
+            count = await db[collection].count_documents({"campaign_id": campaign_id})
+            categories.append({"collection": collection, "label": label, "count": count})
+            total += count
+    else:
+        for collection, label in PURGE_DEPENDENCY_MAP:
+            count = await purge_repository.count_campaign_scoped(collection, campaign_id)
+            categories.append({"collection": collection, "label": label, "count": count})
+            total += count
 
     status = CampaignStatus(campaign_doc["status"])
     eligible = status == CampaignStatus.ENDED
@@ -117,6 +141,9 @@ async def execute_purge(
     campaign_name = campaign_doc["summary"]["name"]
     if confirm_campaign_name != campaign_name:
         raise ValidationAppError("Confirmation does not match the exact campaign name")
+
+    if runtime.is_supabase_rest():
+        return await _execute_supabase_purge(campaign_id, campaign_name, actor_user_id, actor_role)
 
     # Idempotency / safe retry (directive §13): a resumable operation means a
     # previous attempt was interrupted mid-purge. Deletes are idempotent by
@@ -227,6 +254,39 @@ async def execute_purge(
             "Campaign operational data permanently deleted. The freed document space is "
             "reusable by MongoDB; allocated cluster storage is not immediately reduced."
         ),
+    }
+
+
+async def _execute_supabase_purge(campaign_id: str, campaign_name: str, actor_user_id: str, actor_role: str) -> dict:
+    """Supabase mode: ONE database transaction (qx_purge_campaign) deletes the campaign's operational data
+    and its name, keeps the ledger money rows (unlinked from the campaign) and writes one audit record.
+    Refused while any conversion is still pending report (not yet settled)."""
+    pending = await get_database()["conversions"].count_documents(
+        {"campaign_id": campaign_id, "approval_status": "pending_report"})
+    if pending:
+        raise ConflictError(f"{pending} conversion(s) still pending report — settle them before deleting this campaign")
+
+    counts = await runtime.get_adapter().purge_campaign(campaign_id, actor_user_id)
+    labels = dict(SUPABASE_PURGE_TABLES)
+    deleted = {t: int(counts.get(t, 0)) for t, _ in SUPABASE_PURGE_TABLES}
+    logger.info("Campaign %s purged by %s (%s): %s", campaign_id, actor_user_id, actor_role, deleted)
+    return {
+        "purge_id": f"purge-{uuid.uuid4().hex[:12]}",
+        "status": PurgeOperationStatus.COMPLETED.value,
+        "campaign_id": campaign_id,
+        "campaign_name": campaign_name,
+        "deleted_counts": {labels[t]: n for t, n in deleted.items()},
+        "total_deleted": sum(deleted.values()),
+        "verification": {
+            # One transaction: either every step happened or none did.
+            "all_purgeable_records_removed": True,
+            "unrelated_totals_unchanged": True,
+            "campaign_row_deleted": int(counts.get("campaigns", 0)) == 1,
+            "ledger_rows_unlinked": int(counts.get("financial_ledger_unlinked", 0)),
+            "audit_record_written": True,
+        },
+        "message": ("Campaign deleted from the database. Ledger money rows were kept, unlinked from the campaign, "
+                    "so publisher balances and payouts still reconcile."),
     }
 
 

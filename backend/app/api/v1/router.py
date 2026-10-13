@@ -4,6 +4,7 @@ from app.api.v1.endpoints import (
     admin_dashboard,
     admin_financials,
     campaign_access,
+    click_reports,
     conversion_review,
     admin_security,
     admin_managers,
@@ -59,6 +60,7 @@ api_router.include_router(postbacks.public_router, prefix="/postback", tags=["po
 api_router.include_router(publisher.router, prefix="/publisher", tags=["publisher"])
 # --- Part 8 (reporting) ---
 api_router.include_router(reports.router, prefix="/admin/reports", tags=["admin:reports"])
+api_router.include_router(click_reports.router, prefix="/click-reports", tags=["click-reports"])
 # --- Part 10 (integrations / machine API / webhooks) ---
 api_router.include_router(integrations.router, prefix="/admin/integrations", tags=["admin:integrations"])
 api_router.include_router(integrations.machine_router, prefix="/api", tags=["machine-api"], include_in_schema=False)

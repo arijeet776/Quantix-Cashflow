@@ -1,9 +1,0 @@
-__pycache__/
-*.pyc
-.env
-.env.*
-!.env.example
-tests/
-visual_qa_*.py
-requirements-dev.txt
-.pytest_cache/
