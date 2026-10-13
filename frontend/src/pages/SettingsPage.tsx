@@ -4,6 +4,7 @@ import { AppShell } from "../components/AppShell";
 import { AppearanceSettings } from "../components/AppearanceSettings";
 import { CommunitySettings } from "../components/CommunitySettings";
 import { ErrorBanner, FoundationNote } from "../components/Common";
+import { SuccessPopup } from "../components/SuccessPopup";
 
 interface TrackingDomainConfig {
   configured: boolean;
@@ -69,12 +70,9 @@ export function SettingsPage() {
       </div>
 
       <ErrorBanner message={error} />
-      {saved && (
-        <div className="qx-success-banner" data-testid="tracking-domain-saved">
-          Tracking domain updated. New tracking links will use the new domain — historical clicks,
-          conversions, attribution and earnings are never rewritten.
-        </div>
-      )}
+      <SuccessPopup open={saved} onClose={() => setSaved(false)} title="Tracking domain updated" testId="tracking-domain-saved">
+        New tracking links will use the new domain. Historical clicks, conversions, attribution and earnings are never rewritten.
+      </SuccessPopup>
 
       <div className="qx-section-title" style={{ marginTop: 0 }}>Domain &amp; Tracking</div>
       <div className="qx-card" data-testid="tracking-domain-card" style={{ marginBottom: 20 }}>

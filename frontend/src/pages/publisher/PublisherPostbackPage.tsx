@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { api, ApiError } from "../../api/client";
 import { AppShell } from "../../components/AppShell";
 import { ErrorBanner } from "../../components/Common";
+import { SuccessPopup } from "../../components/SuccessPopup";
 import { IconCheck, IconCopy, IconLink } from "../../components/Icons";
 
 // The macro vocabulary is served by the backend (single source of truth shared
@@ -106,7 +107,9 @@ export function PublisherPostbackPage() {
         </div>
       </div>
       <ErrorBanner message={error} />
-      {saved && <div className="qx-success-banner" data-testid="postback-config-saved">Postback configuration saved{config?.version ? ` (version ${config.version})` : ""}. New conversions use it; previous deliveries are unchanged.</div>}
+      <SuccessPopup open={saved} onClose={() => setSaved(false)} title="Postback saved" testId="postback-config-saved">
+        Configuration saved{config?.version ? ` (version ${config.version})` : ""}. New conversions use it; previous deliveries are unchanged.
+      </SuccessPopup>
 
       <div className="qx-panel">
         <div className="qx-panel-body">

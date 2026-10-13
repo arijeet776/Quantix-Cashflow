@@ -88,7 +88,7 @@ function ColumnChooser({ all, visible, setVisible }: { all: { key: string; label
   );
 }
 interface Outbound {
-  outbound_id: string; conversion_id: string; campaign_id: string; event: string | null; direction: string; url: string | null;
+  outbound_id: string; conversion_id: string; campaign_id: string; event: string | null; direction: string; url: string | null; full_url: string | null;
   attempt_count: number; retries: number; final_status: string; created_at: string;
   http_status: number | null; latency_ms: number | null; last_error: string | null;
 }
@@ -142,6 +142,7 @@ export function PublisherReportsPage() {
   const [outbound, setOutbound] = useState<Outbound[] | null>(null);
   const [outboundTotal, setOutboundTotal] = useState(0);
   const [events, setEvents] = useState<EventSummaryRow[] | null>(null);
+  const [viewUrl, setViewUrl] = useState<string | null>(null);
 
   const [range, setRange] = useState<Range>("");
   const [campaign, setCampaign] = useState("");
@@ -313,9 +314,21 @@ export function PublisherReportsPage() {
                 ? <span className="qx-status-ok">Delivered</span>
                 : <span className="qx-status-bad" title={r.last_error ?? undefined}>Failed</span> },
               { key: "latency_ms", label: "Latency", render: (r) => <span className="qx-latency">{r.latency_ms != null ? `${r.latency_ms}ms` : "—"}</span> },
+              { key: "view", label: "Full URL", render: (r) => (
+                <button className="qx-btn qx-btn-sm" disabled={!r.full_url} onClick={() => setViewUrl(r.full_url)}>View</button>
+              ) },
             ]}
           />
           <Pagination page={page} pageSize={PAGE_SIZE} total={outboundTotal} onChange={setPage} />
+          {viewUrl && (
+            <div onClick={() => setViewUrl(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 1000 }}>
+              <div onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Postback URL" style={{ background: "var(--surface)", color: "var(--text)", borderRadius: 16, padding: 20, width: "min(640px, 100%)", maxHeight: "80vh", overflow: "auto", position: "relative" }}>
+                <button type="button" aria-label="Close" onClick={() => setViewUrl(null)} style={{ position: "absolute", top: 10, right: 10, width: 28, height: 28, borderRadius: 8, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", cursor: "pointer", fontSize: 16, lineHeight: 1 }}>×</button>
+                <div style={{ fontWeight: 700, marginBottom: 10 }}>Postback URL (full)</div>
+                <div style={{ fontFamily: "monospace", fontSize: 13, wordBreak: "break-all", background: "var(--surface-2, transparent)", border: "1px solid var(--border)", borderRadius: 10, padding: 12 }}>{viewUrl}</div>
+              </div>
+            </div>
+          )}
         </>
       )}
 

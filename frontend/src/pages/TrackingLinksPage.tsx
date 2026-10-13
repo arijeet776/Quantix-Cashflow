@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { api, ApiError } from "../api/client";
 import { AppShell } from "../components/AppShell";
 import { ErrorBanner, Modal, StatusBadge } from "../components/Common";
+import { SuccessPopup } from "../components/SuccessPopup";
 
 interface TrackingLink {
   link_id: string;
@@ -141,6 +142,7 @@ function GenerateLinkModal({ onClose, onCreated }: { onClose: () => void; onCrea
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<TrackingLink | null>(null);
+  const [noticeOpen, setNoticeOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -160,7 +162,7 @@ function GenerateLinkModal({ onClose, onCreated }: { onClose: () => void; onCrea
     setError(null);
     try {
       const r = await api.post<TrackingLink>("/links", { campaign_id: campaignId, publisher_id: publisherId });
-      setCreated(r.data);
+      setCreated(r.data); setNoticeOpen(true);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to generate link");
     } finally {
@@ -220,7 +222,9 @@ function GenerateLinkModal({ onClose, onCreated }: { onClose: () => void; onCrea
         </form>
       ) : (
         <div data-testid="link-created">
-          <div className="qx-success-banner">Tracking link ready for {created.publisher_name ?? created.publisher_id}.</div>
+          <SuccessPopup open={noticeOpen} onClose={() => setNoticeOpen(false)} title="Tracking link ready">
+            For {created.publisher_name ?? created.publisher_id}.
+          </SuccessPopup>
           <div className="qx-field">
             <label>Public tracking URL</label>
             <code className="qx-code" data-testid="created-tracking-url">{created.tracking_url}</code>

@@ -5,6 +5,7 @@ import { IconBuilding, IconCalendar, IconMail, IconPhone, IconShield, IconUsers 
 import { useAuth } from "../auth/AuthContext";
 import { AppShell } from "../components/AppShell";
 import { StatusBadge } from "../components/Common";
+import { SuccessPopup } from "../components/SuccessPopup";
 
 interface PubProfile {
   publisher_id: string; display_name: string; email: string | null; email_verified: boolean;
@@ -101,7 +102,7 @@ function ManagerContact() {
       <div style={{ fontWeight: 700 }}>Contact number</div>
       <div className="qx-hint">Shown to the Publishers assigned to you under Support &amp; Help.</div>
       {error && <div className="qx-error-banner" role="alert" style={{ marginTop: 10 }}>{error}</div>}
-      {msg && !error && <div className="qx-success-banner" role="status" style={{ marginTop: 10 }}>{msg}</div>}
+      <SuccessPopup open={!!msg && !error} onClose={() => setMsg(null)} title="Saved">{msg}</SuccessPopup>
       <div className="qx-field" style={{ marginTop: 12 }}>
         <label htmlFor="mgr-mobile">Mobile number</label>
         <input id="mgr-mobile" className="qx-input" type="tel" value={mobile} onChange={(e) => setMobile(e.target.value)} data-testid="manager-mobile-input" />

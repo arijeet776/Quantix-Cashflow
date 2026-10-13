@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { api, ApiError } from "../api/client";
 import { AppShell } from "../components/AppShell";
 import { ErrorBanner, Modal, StatusBadge } from "../components/Common";
+import { SuccessPopup } from "../components/SuccessPopup";
 
 interface PurgeCategory {
   collection: string;
@@ -334,6 +335,7 @@ function PurgeModal({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<PurgeResult | null>(null);
+  const [noticeOpen, setNoticeOpen] = useState(false);
 
   useEffect(() => {
     api
@@ -349,7 +351,7 @@ function PurgeModal({
       const r = await api.post<PurgeResult>(`/admin/campaigns/${campaignId}/purge`, {
         confirm_campaign_name: confirmName,
       });
-      setResult(r.data);
+      setResult(r.data); setNoticeOpen(true);
       onPurged();
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Purge failed");
@@ -364,9 +366,9 @@ function PurgeModal({
 
       {result ? (
         <div data-testid="purge-result">
-          <div className="qx-success-banner">
+          <SuccessPopup open={noticeOpen} onClose={() => setNoticeOpen(false)} title="Campaign purged">
             Purge {result.status} — operation <strong>{result.purge_id}</strong>. {result.total_deleted} records deleted.
-          </div>
+          </SuccessPopup>
           <div className="qx-table-wrap" style={{ marginBottom: 12 }}>
             <table className="qx-table">
               <thead>

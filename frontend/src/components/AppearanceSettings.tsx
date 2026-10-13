@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { api, ApiError } from "../api/client";
 import { ACCENT_OPTIONS, DEFAULT_ACCENT, isAccentId, useAccent, type AccentId } from "../theme/AccentContext";
+import { SuccessPopup } from "./SuccessPopup";
 
 /** Super Admin only (rendered inside the Super Admin Settings page). */
 export function AppearanceSettings() {
@@ -36,11 +37,9 @@ export function AppearanceSettings() {
         </div>
 
         {error && <div className="qx-error-banner" role="alert" style={{ marginTop: 12 }}>{error}</div>}
-        {saved && !error && (
-          <div className="qx-success-banner" role="status" style={{ marginTop: 12 }} data-testid="appearance-saved">
-            Accent theme updated for all roles.
-          </div>
-        )}
+        <SuccessPopup open={saved && !error} onClose={() => setSaved(false)} title="Appearance saved" testId="appearance-saved">
+          Accent theme updated for all roles.
+        </SuccessPopup>
 
         <div className="qx-accent-grid" role="radiogroup" aria-label="Global accent theme">
           {ACCENT_OPTIONS.map((o) => {

@@ -103,7 +103,6 @@ const PUBLISHER_NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
         children: [
           { to: "/publisher/reports?tab=conversion", label: "Conversion Report" },
           { to: "/publisher/reports?tab=clicks", label: "Clicks Report" },
-          { to: "/publisher/click-report", label: "Click Report (IP)" },
           { to: "/publisher/reports?tab=campaign", label: "Campaign Report" },
           { to: "/publisher/reports?tab=export", label: "Export Center" },
           { to: "/publisher/reports?tab=postback", label: "Postback Logs" },

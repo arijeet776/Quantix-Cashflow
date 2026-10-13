@@ -214,6 +214,8 @@ async def publisher_postback_logs(
                 "campaign_id": o["campaign_id"], "event": o.get("event"),
                 "direction": "outbound",
                 "url": postback_service.safe_url(o.get("url")),
+                # Full URL for the publisher's OWN delivery (their configured postback). Shown only in the View popup.
+                "full_url": o.get("url"),
                 "attempt_count": o.get("attempt_count", 0), "final_status": o["final_status"],
                 "retries": max(0, o.get("attempt_count", 0) - 1),
                 "created_at": o["created_at"],

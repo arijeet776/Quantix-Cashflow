@@ -110,7 +110,6 @@ export function PublisherCampaignDetailPage() {
   return (
     <AppShell title="Campaigns">
       <button className="qx-back" onClick={() => navigate(-1)}><IconBack width={16} height={16} /> Back</button>
-      <div><span className="qx-idchip"><IconClock width={14} height={14} /> ID: {d.campaign_id}</span></div>
       <ErrorBanner message={error} />
 
       <div className="qx-hero">

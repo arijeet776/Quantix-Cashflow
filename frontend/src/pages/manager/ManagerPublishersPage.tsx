@@ -3,6 +3,7 @@ import { api, ApiError } from "../../api/client";
 import { buildInviteLink } from "../../api/inviteLink";
 import { AppShell } from "../../components/AppShell";
 import { ErrorBanner, Modal, StatusBadge } from "../../components/Common";
+import { SuccessPopup } from "../../components/SuccessPopup";
 
 interface PublisherRow {
   user_id: string;
@@ -124,6 +125,7 @@ function InvitePublisherModal({ onClose }: { onClose: () => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [invite, setInvite] = useState<InviteResult | null>(null);
+  const [noticeOpen, setNoticeOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
   async function submit(e: FormEvent) {
@@ -132,7 +134,7 @@ function InvitePublisherModal({ onClose }: { onClose: () => void }) {
     setError(null);
     try {
       const r = await api.post<InviteResult>("/invites/publisher", { target_email: email || null });
-      setInvite(r.data);
+      setInvite(r.data); setNoticeOpen(true);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to create invite");
     } finally {
@@ -173,7 +175,9 @@ function InvitePublisherModal({ onClose }: { onClose: () => void }) {
         </form>
       ) : (
         <div data-testid="invite-created">
-          <div className="qx-success-banner">Invite created for {invite.target_email}.</div>
+          <SuccessPopup open={noticeOpen} onClose={() => setNoticeOpen(false)} title="Invite created">
+            Invite created for {invite.target_email}.
+          </SuccessPopup>
           <div className="qx-field">
             <label>Invite link (share with the publisher)</label>
             <code className="qx-code" data-testid="invite-link">{inviteUrl}</code>

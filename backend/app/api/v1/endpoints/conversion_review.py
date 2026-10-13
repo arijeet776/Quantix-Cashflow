@@ -25,6 +25,17 @@ async def list_conversions(
     return await svc.list_review(user, approval_status, campaign_id, (page - 1) * page_size, page_size)
 
 
+@router.get("/grouped")
+async def list_conversions_grouped(
+    approval_status: str | None = Query(default=None, pattern="^(pending_report|confirmed|rejected)$"),
+    campaign_id: str | None = Query(default=None, max_length=32),
+    page: int = Query(default=1, ge=1), page_size: int = Query(default=20, ge=1, le=100),
+    user: CurrentUser = Depends(_reviewer),
+):
+    """One row per Quantix click ID; each event is listed under that row (see conversion_review_service)."""
+    return await svc.list_review_grouped(user, approval_status, campaign_id, (page - 1) * page_size, page_size)
+
+
 @router.post("/{conversion_id}/confirm")
 async def confirm(conversion_id: str, request: Request, body: OutcomeBody = OutcomeBody(),
                   user: CurrentUser = Depends(_reviewer)):

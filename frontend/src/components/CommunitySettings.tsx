@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { api, ApiError } from "../api/client";
+import { SuccessPopup } from "./SuccessPopup";
 
 /** Super Admin only: Support / Community -> Quantix WhatsApp Group Link. */
 export function CommunitySettings() {
@@ -33,7 +34,7 @@ export function CommunitySettings() {
         <div style={{ fontWeight: 700, fontSize: 15 }}>Quantix WhatsApp Group Link</div>
         <div className="qx-hint" style={{ marginTop: 4 }}>Shown to Publishers in Support &amp; Help as “Join Quantix WhatsApp Group”. Leave empty to hide it.</div>
         {error && <div className="qx-error-banner" role="alert" style={{ marginTop: 12 }}>{error}</div>}
-        {ok && !error && <div className="qx-success-banner" role="status" style={{ marginTop: 12 }} data-testid="community-saved">{ok}</div>}
+        <SuccessPopup open={!!ok && !error} onClose={() => setOk(null)} title="Saved" testId="community-saved">{ok}</SuccessPopup>
         <div className="qx-field" style={{ marginTop: 14 }}>
           <label htmlFor="wa-link">Group invite link</label>
           <input id="wa-link" className="qx-input" type="url" inputMode="url" placeholder="https://chat.whatsapp.com/…" value={value}
