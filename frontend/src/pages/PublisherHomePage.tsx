@@ -104,7 +104,8 @@ export function PublisherHomePage() {
             {st.top_campaigns.length === 0 ? (
               <div className="qx-empty-state">No traffic yet. Share your tracking links to get started.</div>
             ) : (
-              <table className="qx-table" data-testid="publisher-recent-conversions">
+              <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", touchAction: "pan-x pan-y" }}>
+              <table className="qx-table" style={{ minWidth: 520 }} data-testid="publisher-recent-conversions">
                 <thead><tr><th>Campaign</th><th style={{ textAlign: "right" }}>Clicks</th><th style={{ textAlign: "right" }}>Conv.</th><th style={{ textAlign: "right" }}>Earnings</th></tr></thead>
                 <tbody>
                   {st.top_campaigns.map((c) => (
@@ -117,6 +118,7 @@ export function PublisherHomePage() {
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
           </div>
         </>

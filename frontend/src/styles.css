@@ -931,21 +931,21 @@ table.qx-table { width: 100%; border-collapse: collapse; font-size: 13.5px; min-
 
 
 /* ===== HIQ-style publisher sidebar (larger touch targets) ===== */
-.qx-sidebar-pub { width: 268px; padding: 18px 14px; }
-@media (max-width: 880px) { .qx-sidebar-pub { width: min(78vw, 320px); } }
-.qx-sidebar-pub .qx-sidebar-brand { padding: 4px 6px 18px; }
-.qx-sidebar-pub .qx-sidebar-brand-name { font-size: 19px; }
-.qx-sidebar-pub .qx-nav-label { font-size: 12px; letter-spacing: 0.16em; margin: 14px 8px 10px; }
+.qx-sidebar-pub { width: 236px; padding: 12px 10px; }
+@media (max-width: 880px) { .qx-sidebar-pub { width: min(72vw, 270px); } }
+.qx-sidebar-pub .qx-sidebar-brand { padding: 2px 4px 10px; }
+.qx-sidebar-pub .qx-nav-label { font-size: 10.5px; letter-spacing: 0.14em; margin: 8px 6px 6px; padding: 0; }
 .qx-sidebar-pub .qx-nav-link,
-.qx-sidebar-pub .qx-nav-group-btn { padding: 14px 16px; border-radius: 18px; font-size: 16px; font-weight: 600; gap: 14px; margin-bottom: 6px; }
+.qx-sidebar-pub .qx-nav-group-btn { padding: 8px 11px; border-radius: 12px; font-size: 14px; font-weight: 600; gap: 10px; margin-bottom: 3px; }
 .qx-sidebar-pub .qx-nav-link svg:first-child,
-.qx-sidebar-pub .qx-nav-group-btn svg:first-child { width: 20px; height: 20px; }
+.qx-sidebar-pub .qx-nav-group-btn svg:first-child { width: 17px; height: 17px; }
 .qx-sidebar-pub .qx-nav-group-chevron { margin-left: auto; }
-.qx-sidebar-pub .qx-nav-sublink { padding: 11px 14px 11px 28px; font-size: 15px; border-radius: 14px; }
-.qx-sidebar-pub .qx-support-card { border-radius: 22px; padding: 14px; }
-.qx-sidebar-pub .qx-support-link { padding: 10px 12px; font-size: 15px; }
-.qx-sidebar-pub .qx-user-card { border-radius: 22px; padding: 12px; }
-.qx-sidebar-pub .qx-user-avatar { width: 52px; height: 52px; border-radius: 16px; }
+.qx-sidebar-pub .qx-nav-sublink { padding: 7px 12px 7px 26px; font-size: 13px; border-radius: 10px; }
+.qx-sidebar-pub .qx-support-card { border-radius: 14px; padding: 8px; margin: 6px 0 8px; }
+.qx-sidebar-pub .qx-support-card .hd { font-size: 10.5px; margin-bottom: 4px; }
+.qx-sidebar-pub .qx-support-link { padding: 6px 8px; font-size: 12.5px; border-radius: 10px; }
+.qx-sidebar-pub .qx-user-card { border-radius: 14px; padding: 8px; }
+.qx-sidebar-pub .qx-user-avatar { width: 36px; height: 36px; border-radius: 11px; }
 
 /* ===== Publisher dashboard: one large glass card per stat (HIQ layout) ===== */
 .qx-stat-grid-hiq .qx-stat-card {
@@ -1006,3 +1006,14 @@ table.qx-table { width: 100%; border-collapse: collapse; font-size: 13.5px; min-
 @media (prefers-reduced-transparency: reduce) {
   .qx-popup-card { background-color: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; }
 }
+
+/* ---------- Notification bell dot ---------- */
+.qx-icon-btn { position: relative; }
+.qx-bell-dot { position: absolute; top: 6px; right: 7px; width: 9px; height: 9px; border-radius: 50%; background: #ef4444; border: 2px solid var(--surface, #0b1220); }
+
+/* ---------- Sidebar brand: full Quantix logo (same as login page), theme-synced ---------- */
+.qx-sidebar-logo-wrap { display: flex; align-items: center; min-width: 0; flex: 1; }
+.qx-sidebar-logo { height: 34px; width: auto; max-width: 100%; display: block; object-fit: contain; }
+.qx-sidebar-brand-mark, .qx-sidebar-brand-name { display: none; }
+.qx-sidebar.collapsed .qx-sidebar-logo-wrap { display: none; }
+.qx-sidebar.collapsed .qx-sidebar-brand-mark { display: block; }

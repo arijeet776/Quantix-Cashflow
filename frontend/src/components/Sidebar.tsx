@@ -120,10 +120,6 @@ const PUBLISHER_NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
       { to: "/publisher/settlements", label: "Settlements", icon: IconFinancial },
     ],
   },
-  {
-    label: "Support & Help",
-    items: [{ to: "/support", label: "Support & Help", icon: IconSupport }],
-  },
 ];
 
 function GroupNav({ item, onNavigate, collapsed, onExpand }: { item: GroupItem; onNavigate: () => void; collapsed: boolean; onExpand: () => void }) {
@@ -206,8 +202,12 @@ export function Sidebar({ open, onClose, collapsed: collapsedProp = false, onTog
       <div className={`qx-sidebar-backdrop ${open ? "open" : ""}`} onClick={onClose} aria-hidden="true" />
       <aside className={`qx-sidebar ${open ? "open" : ""}${collapsed ? " collapsed" : ""}${user?.role === "publisher" ? " qx-sidebar-pub" : ""}`} data-testid="sidebar" aria-label="Sidebar">
         <div className="qx-sidebar-brand">
+          {/* Same logo as the login/register page; light/dark variant follows <html data-theme> in CSS. */}
+          <span className="qx-sidebar-logo-wrap">
+            <img src="/quantix-logo-full.png" alt="QuantiX" className="qx-sidebar-logo qx-brand-light" />
+            <img src="/quantix-logo-full-dark.png" alt="" aria-hidden="true" className="qx-sidebar-logo qx-brand-dark" />
+          </span>
           <img src="/quantix-logo-mark.png" alt="QuantiX" className="qx-sidebar-brand-mark" />
-          <span className="qx-sidebar-brand-name">QuantiX</span>
           {onToggleCollapse && (
             <button type="button" className="qx-icon-btn qx-collapse-btn" onClick={onArrowClick} data-testid="sidebar-collapse-toggle"
               aria-label={isNarrow ? "Close menu" : collapsed ? "Expand sidebar" : "Collapse sidebar"} aria-pressed={isNarrow ? undefined : collapsed} title={isNarrow ? "Close menu" : collapsed ? "Expand sidebar" : "Collapse sidebar"}>

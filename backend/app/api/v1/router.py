@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
+    announcements,
     admin_dashboard,
     admin_financials,
     campaign_access,
@@ -74,3 +75,6 @@ api_router.include_router(conversion_review.router, prefix="/admin/conversion-re
 # --- Part 11 (security / operations / support) ---
 api_router.include_router(support.router, prefix="/support", tags=["support"])
 api_router.include_router(admin_security.router, prefix="/admin/security", tags=["admin:security"])
+
+# --- Notifications: Super Admin broadcast messages ---
+api_router.include_router(announcements.router, prefix="/announcements", tags=["announcements"])
