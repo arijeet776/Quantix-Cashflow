@@ -92,14 +92,14 @@ const PUBLISHER_NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
     items: [
       { to: "/publisher/home", label: "Dashboard", icon: IconDashboard },
       {
-        label: "Campaign", icon: IconCampaign,
+        label: "Campaigns", icon: IconCampaign,
         children: [
           { to: "/publisher/browse", label: "All Campaigns" },
           { to: "/publisher/campaigns", label: "Approved Campaigns" },
         ],
       },
       {
-        label: "Report", icon: IconReports,
+        label: "Reports", icon: IconReports,
         children: [
           { to: "/publisher/reports?tab=conversion", label: "Conversion Report" },
           { to: "/publisher/reports?tab=clicks", label: "Clicks Report" },

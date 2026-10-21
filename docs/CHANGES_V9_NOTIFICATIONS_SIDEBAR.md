@@ -3,3 +3,6 @@
 - Sidebar brand now uses the login-page logo (light/dark synced); collapsed sidebar shows the small mark.
 - Publisher sidebar made compact; duplicate "Support & Help" menu item removed (support card remains).
 - Publisher dashboard Top Campaigns table scrolls sideways on phones.
+
+# v10
+- Publisher sidebar restyled to the reference (width, spacing, divider under logo, bigger logo, support card, footer user card). CSS only; menu labels Campaign/Report renamed to Campaigns/Reports.
