@@ -298,8 +298,10 @@ async def process_click(
     # publisher also sends it, their value is dropped (never stored, never
     # forwarded) so it cannot collide with or spoof the Quantix click id.
     reserved = (config.get("click_id_param") or "").lower()
-    if reserved:
-        params.pop(reserved, None)
+    extras = [str(n).lower() for n in (config.get("extra_click_id_params") or []) if n]
+    for name in [reserved, *extras]:
+        if name:
+            params.pop(name, None)
     click_doc: dict = {
         "campaign_id": campaign_id,
         "campaign_code": campaign_code,
@@ -355,5 +357,8 @@ async def process_click(
     redirect_url, _used = substitute_macros(destination, macro_values)
     if reserved:
         redirect_url = inject_query_param(redirect_url, reserved, click_id)
+    for name in (config.get("extra_click_id_params") or []):
+        if name:  # same Quantix click id also sent in these parameters
+            redirect_url = inject_query_param(redirect_url, str(name), click_id)
 
     return {"action": "redirect", "url": redirect_url, "click_id": click_id}

@@ -101,7 +101,7 @@ async def process_inbound(platform: str, token: str, params: dict, request_id: s
         return await finalize("rejected", 200, error="campaign_not_accepting")
 
     config = await campaign_repository.get_current_config(campaign) or {}
-    mapping = {k: config.get(k) for k in ("click_id_param", "advertiser_click_id_param", "campaign_title_param", "event_param")}
+    mapping = {k: config.get(k) for k in ("click_id_param", "advertiser_click_id_param", "campaign_title_param", "event_param", "extra_click_id_params")}
     try:
         if mapping.get("click_id_param"):
             canonical = postback_adapters.normalize_mapped(platform, params, mapping)

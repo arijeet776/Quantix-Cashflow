@@ -6,3 +6,7 @@
 
 # v10
 - Publisher sidebar restyled to the reference (width, spacing, divider under logo, bigger logo, support card, footer user card). CSS only; menu labels Campaign/Report renamed to Campaigns/Reports.
+
+# v11
+- Approved Campaigns (publisher) now hides campaigns that are not Active (paused/ended/purged) and shows them again when Active.
+- New optional campaign setting "extra_click_id_params": the same Quantix click id is also added to these parameters on the advertiser link (e.g. p1 AND source), replacing any {placeholder} already there; an inbound postback may return the id through any of them. No SQL needed.

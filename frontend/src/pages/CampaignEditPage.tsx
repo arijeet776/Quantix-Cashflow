@@ -16,7 +16,7 @@ interface CampaignDetail {
     platform: string | null;
     postback_platform: "trackier" | "trackix" | "offer18" | "custom";
     click_id_param?: string | null; advertiser_click_id_param?: string | null;
-    event_param?: string | null; campaign_title_param?: string | null;
+    event_param?: string | null; campaign_title_param?: string | null; extra_click_id_params?: string[] | null;
     postback_config: Record<string, string>;
     payout_min: number | null;
     payout_max: number | null;
@@ -57,6 +57,7 @@ export function CampaignEditPage() {
           advertiser_click_id_param: c.advertiser_click_id_param ?? "",
           event_param: c.event_param ?? "",
           campaign_title_param: c.campaign_title_param ?? "",
+          extra_click_id_params: (c.extra_click_id_params ?? []).join(", "),
           payout_min: c.payout_min != null ? String(c.payout_min) : "",
           payout_max: c.payout_max != null ? String(c.payout_max) : "",
           daily_cap: c.daily_cap != null ? String(c.daily_cap) : "",

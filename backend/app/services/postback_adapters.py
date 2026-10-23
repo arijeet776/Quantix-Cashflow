@@ -182,7 +182,13 @@ def normalize_mapped(platform: str, params: dict, mapping: dict) -> CanonicalPos
     def pick(name):
         return flat.get(str(name).lower()) if name else None
 
-    canonical["quantix_click_id"] = _qx_click(pick(mapping.get("click_id_param")))
+    qx = _qx_click(pick(mapping.get("click_id_param")))
+    if not qx:  # extra parameters that also carried our click id outbound
+        for extra in mapping.get("extra_click_id_params") or []:
+            qx = _qx_click(pick(extra))
+            if qx:
+                break
+    canonical["quantix_click_id"] = qx
     adv = pick(mapping.get("advertiser_click_id_param"))
     canonical["external_click_id"] = adv if adv and not _qx_click(adv) else None
     canonical["agency_click_id"] = canonical["external_click_id"]

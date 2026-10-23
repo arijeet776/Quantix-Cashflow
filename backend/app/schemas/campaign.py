@@ -69,6 +69,10 @@ class CampaignConfigFields(BaseModel):
     advertiser_click_id_param: str | None = Field(default=None, max_length=40)
     campaign_title_param: str | None = Field(default=None, max_length=40)
     event_param: str | None = Field(default=None, max_length=40)
+    # Optional extra parameters that ALSO carry the same Quantix click id outbound
+    # (e.g. Trackier wants it in both p1 and source). The postback may bring it
+    # back through any of them.
+    extra_click_id_params: list[str] = Field(default_factory=list, max_length=3)
 
     @field_validator("click_id_param", "advertiser_click_id_param", "campaign_title_param", "event_param")
     @classmethod
@@ -82,6 +86,26 @@ class CampaignConfigFields(BaseModel):
         if not re.fullmatch(r"[A-Za-z0-9_]{1,40}", v):
             raise ValueError("Parameter names may only contain letters, digits and underscore")
         return v
+
+    @field_validator("extra_click_id_params")
+    @classmethod
+    def _valid_extra_params(cls, v, info):
+        import re
+        out: list[str] = []
+        taken = {(info.data.get("click_id_param") or "").lower(), (info.data.get("advertiser_click_id_param") or "").lower()}
+        taken.discard("")
+        for raw in v or []:
+            name = (raw or "").strip()
+            if not name:
+                continue
+            if not re.fullmatch(r"[A-Za-z0-9_]{1,40}", name):
+                raise ValueError("Parameter names may only contain letters, digits and underscore")
+            if name.lower() in {o.lower() for o in out}:
+                continue  # same name typed twice
+            if name.lower() in taken:
+                raise ValueError(f"'{name}' is already used for another click id parameter")
+            out.append(name)
+        return out
 
     @field_validator("advertiser_click_id_param")
     @classmethod

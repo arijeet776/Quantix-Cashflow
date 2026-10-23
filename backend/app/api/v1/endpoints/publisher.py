@@ -76,7 +76,8 @@ async def publisher_campaigns(user: CurrentUser = Depends(_publisher_only)):
     out = []
     for link in links:
         campaign = await campaign_repository.get_campaign(link["campaign_id"])
-        if campaign is None:
+        # Paused / ended / purged campaigns disappear from Approved Campaigns and come back when Active again.
+        if campaign is None or campaign["status"] != "active":
             continue
         config = await campaign_repository.get_current_config(campaign)
         out.append({

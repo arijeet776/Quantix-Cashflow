@@ -86,7 +86,7 @@ async def campaign_mapping(campaign_id: str) -> dict:
     campaign = await campaign_repository.get_campaign(campaign_id)
     config = (await campaign_repository.get_current_config(campaign)) if campaign else None
     config = config or {}
-    return {k: config.get(k) for k in ("click_id_param", "advertiser_click_id_param", "campaign_title_param", "event_param")}
+    return {k: config.get(k) for k in ("click_id_param", "advertiser_click_id_param", "campaign_title_param", "event_param", "extra_click_id_params")}
 
 
 def build_advertiser_postback_url(inbound_url: str, platform: str, mapping: dict | None) -> str:

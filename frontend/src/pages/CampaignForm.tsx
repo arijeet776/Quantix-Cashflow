@@ -18,6 +18,7 @@ export interface CampaignFormValues {
   advertiser_click_id_param: string; // parameter the advertiser's postback uses for its own click id
   event_param: string;               // parameter carrying the event / goal name
   campaign_title_param: string;      // parameter carrying the campaign title
+  extra_click_id_params: string;     // comma separated: more parameters that also carry the Quantix click id
   payout_min: string;
   payout_max: string;
   daily_cap: string;
@@ -42,6 +43,7 @@ export const EMPTY_CAMPAIGN_FORM: CampaignFormValues = {
   advertiser_click_id_param: "click_id",
   event_param: "goal_name",
   campaign_title_param: "",
+  extra_click_id_params: "",
   payout_min: "",
   payout_max: "",
   daily_cap: "",
@@ -84,6 +86,7 @@ export function toApiPayload(v: CampaignFormValues) {
     advertiser_click_id_param: v.advertiser_click_id_param.trim() || null,
     event_param: v.event_param.trim() || null,
     campaign_title_param: v.campaign_title_param.trim() || null,
+    extra_click_id_params: v.extra_click_id_params.split(/[\s,;]+/).map((x) => x.trim()).filter(Boolean),
     payout_min: v.payout_min === "" ? null : Number(v.payout_min),
     payout_max: v.payout_max === "" ? null : Number(v.payout_max),
     daily_cap: v.daily_cap === "" ? null : Number(v.daily_cap),
@@ -170,6 +173,11 @@ export function CampaignForm({ value, onChange }: { value: CampaignFormValues; o
           )}
           <div className="qx-hint">Every click is sent to the advertiser with our id in this parameter, and the postback brings it back through the same one. Publishers cannot use it.</div>
         </div>
+      </div>
+      <div className="qx-field">
+        <label htmlFor="c-pb-extraparams">Also send the same Quantix click id in (optional)</label>
+        <input id="c-pb-extraparams" className="qx-input" placeholder="e.g. source" value={value.extra_click_id_params} onChange={(e) => set("extra_click_id_params", e.target.value)} />
+        <div className="qx-hint">For advertisers that want our click id in two parameters, e.g. p1 and source. Separate several with commas. Each one is added to the advertiser link with the same Quantix click id.</div>
       </div>
       <div className="qx-row">
         <div className="qx-field">
